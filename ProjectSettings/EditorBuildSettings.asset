@@ -7,5 +7,8 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/LevelDesignStarterKit/Generated/Scenes/LD_StarterKit_Demo.unity
+    guid: 77366547cde107745b1ec0212c502213
+  - enabled: 1
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/Level 1.unity
     guid: c677d6311d2a15c4b8a94a7d96fa6b21
   m_configObjects: {}

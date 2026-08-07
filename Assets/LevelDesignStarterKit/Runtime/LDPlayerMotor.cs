@@ -7,7 +7,6 @@ namespace LevelDesignStarterKit
     {
         [Header("Movement")]
         [SerializeField, Min(0.1f)] private float walkSpeed = 4f;
-        [SerializeField, Min(0.1f)] private float runSpeed = 7f;
         [SerializeField, Min(0.1f)] private float rotationSmoothTime = 0.08f;
         [SerializeField, Min(0.1f)] private float jumpHeight = 1.1f;
         [SerializeField] private float gravity = -25f;
@@ -78,11 +77,7 @@ namespace LevelDesignStarterKit
             }
 
             verticalVelocity += gravity * Time.deltaTime;
-            float speed = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)
-                ? runSpeed
-                : walkSpeed;
-
-            Vector3 velocity = moveDirection * speed;
+            Vector3 velocity = moveDirection * walkSpeed;
             velocity.y = verticalVelocity;
             controller.Move(velocity * Time.deltaTime);
 

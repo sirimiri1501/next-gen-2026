@@ -4,27 +4,30 @@ namespace LevelDesignStarterKit
 {
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(LDGuardDetectionLight))]
-    public sealed class LDEnemyGuard : MonoBehaviour
+    public sealed class LDEnemySpinGuard : MonoBehaviour
     {
         private enum GuardState
         {
-            Patrol,
+            Spin,
             Chase,
-            Search
+            Search,
+            Return
         }
 
         [Header("References")]
         [SerializeField] private Transform player;
-        [SerializeField] private LDWaypointPath patrolPath;
         [SerializeField] private Transform eye;
         [SerializeField] private LDGuardDetectionLight detectionLight;
 
+        [Header("Idle Spin")]
+        [SerializeField, Min(1f)] private float spinSpeed = 90f;
+        [SerializeField] private bool clockwise = true;
+
         [Header("Movement")]
-        [SerializeField, Min(0.1f)] private float patrolSpeed = 2.2f;
         [SerializeField, Min(0.1f)] private float chaseSpeed = 4.2f;
+        [SerializeField, Min(0.1f)] private float returnSpeed = 2.2f;
         [SerializeField, Min(1f)] private float rotationSpeed = 360f;
-        [SerializeField, Min(0.05f)] private float waypointTolerance = 0.25f;
-        [SerializeField, Min(0f)] private float waypointWaitTime = 0.4f;
+        [SerializeField, Min(0.05f)] private float returnTolerance = 0.25f;
         [SerializeField] private float gravity = -25f;
 
         [Header("Detection")]
@@ -40,9 +43,6 @@ namespace LevelDesignStarterKit
 
         private CharacterController controller;
         private GuardState state;
-        private int currentWaypointIndex;
-        private bool movingForward = true;
-        private float waypointWaitTimer;
         private float timeWithoutSight;
         private float verticalVelocity;
         private Vector3 lastSeenPosition;
@@ -109,12 +109,17 @@ namespace LevelDesignStarterKit
                     MoveTowards(lastSeenPosition, chaseSpeed * 0.8f, 0.1f);
                     if (timeWithoutSight >= losePlayerAfter)
                     {
-                        ReturnToPatrol();
+                        ReturnToPost();
                     }
+
+                    break;
+
+                case GuardState.Return:
+                    UpdateReturnToPost();
                     break;
 
                 default:
-                    UpdatePatrol();
+                    SpinInPlace();
                     break;
             }
         }
@@ -124,9 +129,8 @@ namespace LevelDesignStarterKit
             UpdateDetectionLight();
         }
 
-        public void Configure(LDWaypointPath path, Transform playerTransform)
+        public void Configure(Transform playerTransform)
         {
-            patrolPath = path;
             player = playerTransform;
         }
 
@@ -141,87 +145,37 @@ namespace LevelDesignStarterKit
             transform.SetPositionAndRotation(initialPosition, initialRotation);
             controller.enabled = true;
 
-            state = GuardState.Patrol;
-            currentWaypointIndex = 0;
-            movingForward = true;
-            waypointWaitTimer = 0f;
+            state = GuardState.Spin;
             timeWithoutSight = 0f;
             verticalVelocity = 0f;
         }
 
-        private void UpdatePatrol()
+        private void SpinInPlace()
         {
-            if (patrolPath == null || patrolPath.Count == 0)
-            {
-                ApplyGravityOnly();
-                return;
-            }
+            float direction = clockwise ? 1f : -1f;
+            transform.Rotate(Vector3.up, spinSpeed * direction * Time.deltaTime, Space.World);
+            ApplyGravityOnly();
+        }
 
-            Transform waypoint = patrolPath.GetPoint(currentWaypointIndex);
-            Vector3 horizontalDelta = waypoint.position - transform.position;
+        private void ReturnToPost()
+        {
+            state = GuardState.Return;
+            timeWithoutSight = 0f;
+        }
+
+        private void UpdateReturnToPost()
+        {
+            Vector3 horizontalDelta = initialPosition - transform.position;
             horizontalDelta.y = 0f;
 
-            if (horizontalDelta.magnitude <= waypointTolerance)
+            if (horizontalDelta.magnitude <= returnTolerance)
             {
-                waypointWaitTimer += Time.deltaTime;
                 ApplyGravityOnly();
-
-                if (waypointWaitTimer >= waypointWaitTime)
-                {
-                    waypointWaitTimer = 0f;
-                    AdvanceWaypoint();
-                }
-
+                state = GuardState.Spin;
                 return;
             }
 
-            MoveTowards(waypoint.position, patrolSpeed, waypointTolerance);
-        }
-
-        private void AdvanceWaypoint()
-        {
-            if (patrolPath.Count <= 1)
-            {
-                currentWaypointIndex = 0;
-                return;
-            }
-
-            if (patrolPath.Loop)
-            {
-                currentWaypointIndex = (currentWaypointIndex + 1) % patrolPath.Count;
-                return;
-            }
-
-            if (movingForward)
-            {
-                currentWaypointIndex++;
-                if (currentWaypointIndex >= patrolPath.Count - 1)
-                {
-                    currentWaypointIndex = patrolPath.Count - 1;
-                    movingForward = false;
-                }
-            }
-            else
-            {
-                currentWaypointIndex--;
-                if (currentWaypointIndex <= 0)
-                {
-                    currentWaypointIndex = 0;
-                    movingForward = true;
-                }
-            }
-        }
-
-        private void ReturnToPatrol()
-        {
-            state = GuardState.Patrol;
-            timeWithoutSight = 0f;
-            waypointWaitTimer = 0f;
-
-            if (patrolPath != null && patrolPath.Count > 0)
-            {
-                currentWaypointIndex = patrolPath.GetClosestPointIndex(transform.position);
-            }
+            MoveTowards(initialPosition, returnSpeed, returnTolerance);
         }
 
         private void MoveTowards(Vector3 targetPosition, float speed, float stoppingDistance)
@@ -332,7 +286,7 @@ namespace LevelDesignStarterKit
         {
             if (LDGameSession.Instance != null)
             {
-                LDGameSession.Instance.RespawnPlayer("Caught by a guard. Returned to checkpoint.");
+                LDGameSession.Instance.RespawnPlayer("Caught by a spinning guard. Returned to checkpoint.");
             }
         }
 
@@ -399,7 +353,7 @@ namespace LevelDesignStarterKit
         private void OnDrawGizmos()
         {
             Vector3 origin = eye != null ? eye.position : transform.position + Vector3.up * 1.55f;
-            Color color = state == GuardState.Chase ? Color.red : new Color(1f, 0.35f, 0.2f, 1f);
+            Color color = state == GuardState.Chase ? Color.red : new Color(1f, 0.7f, 0.05f, 1f);
             Gizmos.color = color;
 
             const int segmentCount = 20;
@@ -416,6 +370,8 @@ namespace LevelDesignStarterKit
 
             Gizmos.DrawLine(origin, origin + previous);
             Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.5f, catchDistance);
+            Vector3 postPosition = Application.isPlaying ? initialPosition : transform.position;
+            Gizmos.DrawWireSphere(postPosition + Vector3.up * 0.08f, returnTolerance);
         }
     }
 }

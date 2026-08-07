@@ -161,6 +161,12 @@ namespace LevelDesignStarterKit
                 guard.ResetGuard();
             }
 
+            LDEnemySpinGuard[] spinGuards = FindObjectsOfType<LDEnemySpinGuard>();
+            foreach (LDEnemySpinGuard spinGuard in spinGuards)
+            {
+                spinGuard.ResetGuard();
+            }
+
             LDThirdPersonCamera followCamera = FindObjectOfType<LDThirdPersonCamera>();
             if (followCamera != null)
             {
@@ -187,7 +193,7 @@ namespace LevelDesignStarterKit
             GUI.Label(new Rect(30f, 26f, 390f, 24f), "LEVEL DESIGN STARTER KIT");
             GUI.Label(new Rect(30f, 50f, 390f, 24f), objectiveText);
             GUI.Label(new Rect(30f, 75f, 390f, 24f), HasKey ? "ENERGY CORE: FOUND" : "ENERGY CORE: NOT FOUND");
-            GUI.Label(new Rect(30f, 96f, 390f, 20f), "WASD Move | Shift Run | Space Jump | Esc Cursor");
+            GUI.Label(new Rect(30f, 96f, 390f, 20f), "WASD Move | Space Jump | Esc Cursor");
 
             if (Time.unscaledTime < statusMessageUntil && !string.IsNullOrEmpty(statusMessage))
             {
