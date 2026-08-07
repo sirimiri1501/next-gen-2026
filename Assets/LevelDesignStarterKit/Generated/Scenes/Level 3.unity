@@ -1135,10 +1135,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 420234372}
   distance: 5.5
-  pivotHeight: 1.45
+  pivotHeight: 1.55
   mouseSensitivity: 3
-  minimumPitch: -20
-  maximumPitch: 65
+  minimumPitch: -80
+  maximumPitch: 80
   positionSmoothTime: 0.05
   collisionRadius: 0.2
   collisionMask:

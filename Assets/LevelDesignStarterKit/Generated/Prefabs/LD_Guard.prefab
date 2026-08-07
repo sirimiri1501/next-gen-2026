@@ -125,6 +125,7 @@ GameObject:
   - component: {fileID: 4351881564967476639}
   - component: {fileID: 2865442628599261078}
   - component: {fileID: 791804121507983490}
+  - component: {fileID: 7767371786219809383}
   m_Layer: 0
   m_Name: LD_Guard
   m_TagString: Untagged
@@ -191,6 +192,7 @@ MonoBehaviour:
   player: {fileID: 0}
   patrolPath: {fileID: 0}
   eye: {fileID: 6935529246387644244}
+  detectionLight: {fileID: 0}
   patrolSpeed: 2.2
   chaseSpeed: 4.2
   rotationSpeed: 360
@@ -207,7 +209,27 @@ MonoBehaviour:
   obstacleProbeDistance: 1.1
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
+--- !u!114 &7767371786219809383
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3697040906303330991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43837ab094924abfb94eb74476c0fa55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  showLightRange: 1
+  patrolColor: {r: 1, g: 0, b: 0, a: 0.2}
+  alertColor: {r: 1, g: 0, b: 0, a: 0.2}
+  showCatchRing: 1
+  catchRingColor: {r: 1, g: 0, b: 0, a: 0.6}
+  catchRingThickness: 0.08
+  heightOffset: 0.04
+  segmentCount: 32
 --- !u!1 &4983368384536359680
 GameObject:
   m_ObjectHideFlags: 0

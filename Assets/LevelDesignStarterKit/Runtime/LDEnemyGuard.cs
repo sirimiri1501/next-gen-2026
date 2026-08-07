@@ -41,6 +41,8 @@ namespace LevelDesignStarterKit
         private CharacterController controller;
         private GuardState state;
         private int currentWaypointIndex;
+        private int currentBezierSegmentIndex;
+        private float currentBezierProgress;
         private bool movingForward = true;
         private float waypointWaitTimer;
         private float timeWithoutSight;
@@ -71,6 +73,12 @@ namespace LevelDesignStarterKit
             }
 
             ResolvePlayer();
+            if (CanCatchNearbyPlayer())
+            {
+                CatchPlayer();
+                return;
+            }
+
             bool canSeePlayer = CanSeePlayer();
 
             if (canSeePlayer)
@@ -85,17 +93,6 @@ namespace LevelDesignStarterKit
                 if (state == GuardState.Chase)
                 {
                     state = GuardState.Search;
-                }
-            }
-
-            if (player != null && state == GuardState.Chase)
-            {
-                Vector3 horizontalDelta = player.position - transform.position;
-                horizontalDelta.y = 0f;
-                if (horizontalDelta.magnitude <= catchDistance)
-                {
-                    CatchPlayer();
-                    return;
                 }
             }
 
@@ -143,6 +140,8 @@ namespace LevelDesignStarterKit
 
             state = GuardState.Patrol;
             currentWaypointIndex = 0;
+            currentBezierSegmentIndex = 0;
+            currentBezierProgress = 0f;
             movingForward = true;
             waypointWaitTimer = 0f;
             timeWithoutSight = 0f;
@@ -154,6 +153,12 @@ namespace LevelDesignStarterKit
             if (patrolPath == null || patrolPath.Count == 0)
             {
                 ApplyGravityOnly();
+                return;
+            }
+
+            if (patrolPath.UseBezierMovement)
+            {
+                UpdateBezierPatrol();
                 return;
             }
 
@@ -176,6 +181,99 @@ namespace LevelDesignStarterKit
             }
 
             MoveTowards(waypoint.position, patrolSpeed, waypointTolerance);
+        }
+
+        private void UpdateBezierPatrol()
+        {
+            int segmentCount = patrolPath.CurveSegmentCount;
+            if (segmentCount == 0)
+            {
+                ApplyGravityOnly();
+                return;
+            }
+
+            currentBezierSegmentIndex = Mathf.Clamp(currentBezierSegmentIndex, 0, segmentCount - 1);
+            if (waypointWaitTimer > 0f)
+            {
+                ContinueBezierWait();
+                return;
+            }
+
+            float segmentLength = patrolPath.GetBezierSegmentLength(currentBezierSegmentIndex);
+            float progressDirection = movingForward || patrolPath.Loop ? 1f : -1f;
+            float nextProgress = currentBezierProgress + progressDirection * patrolSpeed * Time.deltaTime / segmentLength;
+            bool reachedSegmentEnd = nextProgress >= 1f || nextProgress <= 0f;
+            currentBezierProgress = Mathf.Clamp01(nextProgress);
+
+            Vector3 targetPosition = patrolPath.GetBezierPoint(currentBezierSegmentIndex, currentBezierProgress);
+            MoveTowards(targetPosition, patrolSpeed, 0f);
+
+            if (reachedSegmentEnd && IsNearHorizontalPosition(targetPosition, waypointTolerance))
+            {
+                if (waypointWaitTime > 0f)
+                {
+                    waypointWaitTimer = Mathf.Max(Time.deltaTime, 0.0001f);
+                }
+                else
+                {
+                    AdvanceBezierSegment();
+                }
+            }
+        }
+
+        private void ContinueBezierWait()
+        {
+            waypointWaitTimer += Time.deltaTime;
+            ApplyGravityOnly();
+
+            if (waypointWaitTimer >= waypointWaitTime)
+            {
+                waypointWaitTimer = 0f;
+                AdvanceBezierSegment();
+            }
+        }
+
+        private void AdvanceBezierSegment()
+        {
+            int segmentCount = patrolPath.CurveSegmentCount;
+            if (segmentCount == 0)
+            {
+                currentBezierSegmentIndex = 0;
+                currentBezierProgress = 0f;
+                return;
+            }
+
+            if (patrolPath.Loop)
+            {
+                currentBezierSegmentIndex = (currentBezierSegmentIndex + 1) % segmentCount;
+                currentBezierProgress = 0f;
+                movingForward = true;
+                return;
+            }
+
+            if (movingForward)
+            {
+                if (currentBezierSegmentIndex >= segmentCount - 1)
+                {
+                    movingForward = false;
+                    currentBezierProgress = 1f;
+                    return;
+                }
+
+                currentBezierSegmentIndex++;
+                currentBezierProgress = 0f;
+                return;
+            }
+
+            if (currentBezierSegmentIndex <= 0)
+            {
+                movingForward = true;
+                currentBezierProgress = 0f;
+                return;
+            }
+
+            currentBezierSegmentIndex--;
+            currentBezierProgress = 1f;
         }
 
         private void AdvanceWaypoint()
@@ -220,7 +318,14 @@ namespace LevelDesignStarterKit
 
             if (patrolPath != null && patrolPath.Count > 0)
             {
-                currentWaypointIndex = patrolPath.GetClosestPointIndex(transform.position);
+                if (patrolPath.UseBezierMovement)
+                {
+                    patrolPath.GetClosestBezierProgress(transform.position, out currentBezierSegmentIndex, out currentBezierProgress);
+                }
+                else
+                {
+                    currentWaypointIndex = patrolPath.GetClosestPointIndex(transform.position);
+                }
             }
         }
 
@@ -297,6 +402,13 @@ namespace LevelDesignStarterKit
             return true;
         }
 
+        private bool IsNearHorizontalPosition(Vector3 targetPosition, float distance)
+        {
+            Vector3 horizontalDelta = targetPosition - transform.position;
+            horizontalDelta.y = 0f;
+            return horizontalDelta.sqrMagnitude <= distance * distance;
+        }
+
         private bool CanSeePlayer()
         {
             if (player == null)
@@ -355,7 +467,19 @@ namespace LevelDesignStarterKit
             EnsureDetectionLight();
 
             bool active = LDGameSession.Instance == null || !LDGameSession.Instance.IsComplete;
-            detectionLight.SetRange(detectionDistance, viewAngle, state == GuardState.Chase, active);
+            detectionLight.SetRange(detectionDistance, viewAngle, state == GuardState.Chase, active, catchDistance);
+        }
+
+        private bool CanCatchNearbyPlayer()
+        {
+            if (player == null)
+            {
+                return false;
+            }
+
+            Vector3 horizontalDelta = player.position - transform.position;
+            horizontalDelta.y = 0f;
+            return horizontalDelta.sqrMagnitude <= catchDistance * catchDistance;
         }
 
         private void ResolvePlayer()

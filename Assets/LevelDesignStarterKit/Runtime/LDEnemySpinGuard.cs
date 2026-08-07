@@ -71,6 +71,12 @@ namespace LevelDesignStarterKit
             }
 
             ResolvePlayer();
+            if (CanCatchNearbyPlayer())
+            {
+                CatchPlayer();
+                return;
+            }
+
             bool canSeePlayer = CanSeePlayer();
 
             if (canSeePlayer)
@@ -85,17 +91,6 @@ namespace LevelDesignStarterKit
                 if (state == GuardState.Chase)
                 {
                     state = GuardState.Search;
-                }
-            }
-
-            if (player != null && state == GuardState.Chase)
-            {
-                Vector3 horizontalDelta = player.position - transform.position;
-                horizontalDelta.y = 0f;
-                if (horizontalDelta.magnitude <= catchDistance)
-                {
-                    CatchPlayer();
-                    return;
                 }
             }
 
@@ -309,7 +304,19 @@ namespace LevelDesignStarterKit
             EnsureDetectionLight();
 
             bool active = LDGameSession.Instance == null || !LDGameSession.Instance.IsComplete;
-            detectionLight.SetRange(detectionDistance, viewAngle, state == GuardState.Chase, active);
+            detectionLight.SetRange(detectionDistance, viewAngle, state == GuardState.Chase, active, catchDistance);
+        }
+
+        private bool CanCatchNearbyPlayer()
+        {
+            if (player == null)
+            {
+                return false;
+            }
+
+            Vector3 horizontalDelta = player.position - transform.position;
+            horizontalDelta.y = 0f;
+            return horizontalDelta.sqrMagnitude <= catchDistance * catchDistance;
         }
 
         private void ResolvePlayer()

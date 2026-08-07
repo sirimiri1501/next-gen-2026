@@ -7,11 +7,17 @@ namespace LevelDesignStarterKit
     public sealed class LDGuardDetectionLight : MonoBehaviour
     {
         private const string RangeObjectName = "Detection Light Range";
+        private const string CatchRingObjectName = "Detection Catch Ring";
+        private static readonly Color DefaultRangeColor = new Color(1f, 0f, 0f, 0.2f);
+        private static readonly Color DefaultCatchRingColor = new Color(1f, 0f, 0f, 0.6f);
 
         [Header("Display")]
         [SerializeField] private bool showLightRange = true;
-        [SerializeField] private Color patrolColor = new Color(1f, 0.75f, 0.1f, 0.28f);
-        [SerializeField] private Color alertColor = new Color(1f, 0.05f, 0.02f, 0.35f);
+        [SerializeField] private Color patrolColor = DefaultRangeColor;
+        [SerializeField] private Color alertColor = DefaultRangeColor;
+        [SerializeField] private bool showCatchRing = true;
+        [SerializeField] private Color catchRingColor = DefaultCatchRingColor;
+        [SerializeField, Min(0.01f)] private float catchRingThickness = 0.08f;
         [SerializeField, Min(0f)] private float heightOffset = 0.04f;
         [SerializeField, Range(4, 96)] private int segmentCount = 32;
 
@@ -20,22 +26,48 @@ namespace LevelDesignStarterKit
         private Mesh rangeMesh;
         private Material rangeMaterial;
         private Transform rangeTransform;
+        private MeshFilter catchRingFilter;
+        private MeshRenderer catchRingRenderer;
+        private Mesh catchRingMesh;
+        private Material catchRingMaterial;
+        private Transform catchRingTransform;
         private float cachedDistance = -1f;
         private float cachedViewAngle = -1f;
         private int cachedSegmentCount = -1;
+        private float cachedCatchRadius = -1f;
+        private float cachedCatchRingThickness = -1f;
+        private int cachedCatchRingSegmentCount = -1;
 
-        public void SetRange(float detectionDistance, float viewAngle, bool alert, bool active)
+        public void SetRange(float detectionDistance, float viewAngle, bool alert, bool active, float catchDistance = 0f)
         {
-            bool shouldShow = isActiveAndEnabled && showLightRange && active && detectionDistance > 0f && viewAngle > 0f;
-            if (!shouldShow)
+            bool shouldShowRange = isActiveAndEnabled && showLightRange && active && detectionDistance > 0f && viewAngle > 0f;
+            bool shouldShowCatchRing = isActiveAndEnabled && showCatchRing && active && catchDistance > 0f;
+
+            if (shouldShowRange)
             {
-                SetRendererEnabled(false);
-                return;
+                EnsureRangeVisuals();
+                SetRangeRendererEnabled(true);
+                UpdateRange(detectionDistance, viewAngle, alert);
+            }
+            else
+            {
+                SetRangeRendererEnabled(false);
             }
 
-            EnsureVisuals();
-            SetRendererEnabled(true);
+            if (shouldShowCatchRing)
+            {
+                EnsureCatchRingVisuals();
+                SetCatchRingRendererEnabled(true);
+                UpdateCatchRing(catchDistance);
+            }
+            else
+            {
+                SetCatchRingRendererEnabled(false);
+            }
+        }
 
+        private void UpdateRange(float detectionDistance, float viewAngle, bool alert)
+        {
             float clampedDistance = Mathf.Max(0f, detectionDistance);
             float clampedViewAngle = Mathf.Clamp(viewAngle, 1f, 179f);
             int clampedSegmentCount = Mathf.Max(4, segmentCount);
@@ -51,12 +83,36 @@ namespace LevelDesignStarterKit
                 RebuildMesh(clampedDistance, clampedViewAngle, clampedSegmentCount);
             }
 
-            rangeMaterial.color = alert ? alertColor : patrolColor;
+            ApplyMaterialColor(rangeMaterial, alert ? alertColor : patrolColor);
         }
 
-        private void EnsureVisuals()
+        private void UpdateCatchRing(float catchDistance)
         {
-            if (rangeRenderer != null && rangeFilter != null && rangeTransform != null)
+            float clampedCatchDistance = Mathf.Max(0f, catchDistance);
+            float clampedThickness = Mathf.Max(0.01f, catchRingThickness);
+            int clampedSegmentCount = Mathf.Max(12, segmentCount);
+
+            catchRingTransform.localPosition = Vector3.up * (heightOffset + 0.01f);
+            catchRingTransform.localRotation = Quaternion.identity;
+            catchRingTransform.localScale = Vector3.one;
+
+            if (!Mathf.Approximately(cachedCatchRadius, clampedCatchDistance) ||
+                !Mathf.Approximately(cachedCatchRingThickness, clampedThickness) ||
+                cachedCatchRingSegmentCount != clampedSegmentCount)
+            {
+                RebuildCatchRingMesh(clampedCatchDistance, clampedThickness, clampedSegmentCount);
+            }
+
+            ApplyMaterialColor(catchRingMaterial, catchRingColor);
+        }
+
+        private void EnsureRangeVisuals()
+        {
+            if (rangeRenderer != null &&
+                rangeFilter != null &&
+                rangeTransform != null &&
+                rangeMesh != null &&
+                MaterialSupportsColor(rangeMaterial))
             {
                 return;
             }
@@ -87,7 +143,7 @@ namespace LevelDesignStarterKit
                 rangeMesh.MarkDynamic();
             }
 
-            if (rangeMaterial == null)
+            if (!MaterialSupportsColor(rangeMaterial))
             {
                 rangeMaterial = CreateRangeMaterial();
             }
@@ -98,12 +154,65 @@ namespace LevelDesignStarterKit
             rangeRenderer.receiveShadows = false;
         }
 
+        private void EnsureCatchRingVisuals()
+        {
+            if (catchRingRenderer != null &&
+                catchRingFilter != null &&
+                catchRingTransform != null &&
+                catchRingMesh != null &&
+                MaterialSupportsColor(catchRingMaterial))
+            {
+                return;
+            }
+
+            Transform existingRing = transform.Find(CatchRingObjectName);
+            GameObject ringObject = existingRing != null ? existingRing.gameObject : new GameObject(CatchRingObjectName);
+            ringObject.transform.SetParent(transform, false);
+
+            catchRingTransform = ringObject.transform;
+            catchRingFilter = ringObject.GetComponent<MeshFilter>();
+            if (catchRingFilter == null)
+            {
+                catchRingFilter = ringObject.AddComponent<MeshFilter>();
+            }
+
+            catchRingRenderer = ringObject.GetComponent<MeshRenderer>();
+            if (catchRingRenderer == null)
+            {
+                catchRingRenderer = ringObject.AddComponent<MeshRenderer>();
+            }
+
+            if (catchRingMesh == null)
+            {
+                catchRingMesh = new Mesh
+                {
+                    name = "Guard Detection Catch Ring"
+                };
+                catchRingMesh.MarkDynamic();
+            }
+
+            if (!MaterialSupportsColor(catchRingMaterial))
+            {
+                catchRingMaterial = CreateRangeMaterial("Guard Detection Catch Ring", 1);
+            }
+
+            catchRingFilter.sharedMesh = catchRingMesh;
+            catchRingRenderer.sharedMaterial = catchRingMaterial;
+            catchRingRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            catchRingRenderer.receiveShadows = false;
+        }
+
         private Material CreateRangeMaterial()
         {
-            Shader shader = Shader.Find("Unlit/Transparent");
+            return CreateRangeMaterial("Guard Detection Light Range", 0);
+        }
+
+        private Material CreateRangeMaterial(string materialName, int renderQueueOffset)
+        {
+            Shader shader = Shader.Find("Sprites/Default");
             if (shader == null)
             {
-                shader = Shader.Find("Sprites/Default");
+                shader = Shader.Find("Legacy Shaders/Transparent/Diffuse");
             }
 
             if (shader == null)
@@ -113,21 +222,67 @@ namespace LevelDesignStarterKit
 
             Material material = new Material(shader)
             {
-                name = "Guard Detection Light Range",
+                name = materialName,
                 hideFlags = HideFlags.HideAndDontSave,
-                renderQueue = (int)RenderQueue.Transparent
+                renderQueue = (int)RenderQueue.Transparent + renderQueueOffset
             };
 
             material.SetOverrideTag("RenderType", "Transparent");
-            material.SetFloat("_Mode", 3f);
-            material.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-            material.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-            material.SetInt("_ZWrite", 0);
-            material.SetInt("_Cull", (int)CullMode.Off);
+            SetFloatIfPresent(material, "_Mode", 3f);
+            SetIntIfPresent(material, "_SrcBlend", (int)BlendMode.SrcAlpha);
+            SetIntIfPresent(material, "_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            SetIntIfPresent(material, "_ZWrite", 0);
+            SetIntIfPresent(material, "_Cull", (int)CullMode.Off);
             material.DisableKeyword("_ALPHATEST_ON");
             material.EnableKeyword("_ALPHABLEND_ON");
             material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             return material;
+        }
+
+        private static void ApplyMaterialColor(Material material, Color color)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            SetColorIfPresent(material, "_Color", color);
+            SetColorIfPresent(material, "_BaseColor", color);
+            SetColorIfPresent(material, "_TintColor", color);
+            SetColorIfPresent(material, "_RendererColor", color);
+        }
+
+        private static bool MaterialSupportsColor(Material material)
+        {
+            return material != null &&
+                (material.HasProperty("_Color") ||
+                    material.HasProperty("_BaseColor") ||
+                    material.HasProperty("_TintColor") ||
+                    material.HasProperty("_RendererColor"));
+        }
+
+        private static void SetColorIfPresent(Material material, string propertyName, Color color)
+        {
+            if (material.HasProperty(propertyName))
+            {
+                material.SetColor(propertyName, color);
+            }
+        }
+
+        private static void SetFloatIfPresent(Material material, string propertyName, float value)
+        {
+            if (material.HasProperty(propertyName))
+            {
+                material.SetFloat(propertyName, value);
+            }
+        }
+
+        private static void SetIntIfPresent(Material material, string propertyName, int value)
+        {
+            if (material.HasProperty(propertyName))
+            {
+                material.SetInt(propertyName, value);
+            }
         }
 
         private void RebuildMesh(float detectionDistance, float viewAngle, int clampedSegmentCount)
@@ -161,11 +316,57 @@ namespace LevelDesignStarterKit
             cachedSegmentCount = clampedSegmentCount;
         }
 
-        private void SetRendererEnabled(bool enabledState)
+        private void RebuildCatchRingMesh(float catchDistance, float thickness, int clampedSegmentCount)
+        {
+            float innerRadius = Mathf.Max(0f, catchDistance - thickness * 0.5f);
+            float outerRadius = catchDistance + thickness * 0.5f;
+            Vector3[] vertices = new Vector3[(clampedSegmentCount + 1) * 2];
+            int[] triangles = new int[clampedSegmentCount * 6];
+
+            for (int segmentIndex = 0; segmentIndex <= clampedSegmentCount; segmentIndex++)
+            {
+                float radians = (segmentIndex / (float)clampedSegmentCount) * Mathf.PI * 2f;
+                Vector3 direction = new Vector3(Mathf.Cos(radians), 0f, Mathf.Sin(radians));
+                int vertexIndex = segmentIndex * 2;
+                vertices[vertexIndex] = direction * innerRadius;
+                vertices[vertexIndex + 1] = direction * outerRadius;
+            }
+
+            for (int segmentIndex = 0; segmentIndex < clampedSegmentCount; segmentIndex++)
+            {
+                int triangleIndex = segmentIndex * 6;
+                int vertexIndex = segmentIndex * 2;
+                triangles[triangleIndex] = vertexIndex;
+                triangles[triangleIndex + 1] = vertexIndex + 1;
+                triangles[triangleIndex + 2] = vertexIndex + 2;
+                triangles[triangleIndex + 3] = vertexIndex + 1;
+                triangles[triangleIndex + 4] = vertexIndex + 3;
+                triangles[triangleIndex + 5] = vertexIndex + 2;
+            }
+
+            catchRingMesh.Clear();
+            catchRingMesh.vertices = vertices;
+            catchRingMesh.triangles = triangles;
+            catchRingMesh.RecalculateBounds();
+
+            cachedCatchRadius = catchDistance;
+            cachedCatchRingThickness = thickness;
+            cachedCatchRingSegmentCount = clampedSegmentCount;
+        }
+
+        private void SetRangeRendererEnabled(bool enabledState)
         {
             if (rangeRenderer != null)
             {
                 rangeRenderer.enabled = enabledState;
+            }
+        }
+
+        private void SetCatchRingRendererEnabled(bool enabledState)
+        {
+            if (catchRingRenderer != null)
+            {
+                catchRingRenderer.enabled = enabledState;
             }
         }
 
@@ -192,6 +393,30 @@ namespace LevelDesignStarterKit
                 else
                 {
                     DestroyImmediate(rangeMaterial);
+                }
+            }
+
+            if (catchRingMesh != null)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(catchRingMesh);
+                }
+                else
+                {
+                    DestroyImmediate(catchRingMesh);
+                }
+            }
+
+            if (catchRingMaterial != null)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(catchRingMaterial);
+                }
+                else
+                {
+                    DestroyImmediate(catchRingMaterial);
                 }
             }
         }

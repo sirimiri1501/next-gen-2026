@@ -24,5 +24,11 @@ namespace LevelDesignStarterKit
             LDGameSession.Instance.CollectKey();
             gameObject.SetActive(false);
         }
+
+        public void ResetCollectible()
+        {
+            collected = false;
+            gameObject.SetActive(true);
+        }
     }
 }

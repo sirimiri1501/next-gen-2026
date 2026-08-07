@@ -12,7 +12,9 @@ lựa chọn đường đi phù hợp.
 
 ## Player
 
-- Third-person.
+- First-person.
+- Trước khi chơi, có màn `CAMERA VIEWING` để quan sát cấu trúc level và click `Begin`.
+- Có thể duplicate `LD_PreviewCamera_01` để tạo nhiều điểm nhìn trước khi chơi.
 - Có thể đi, chạy và nhảy.
 - Không combat hoặc crouch.
 - Bị guard bắt sẽ quay lại checkpoint gần nhất.
@@ -21,6 +23,7 @@ lựa chọn đường đi phù hợp.
 
 - Tuần tra theo waypoint.
 - Phát hiện player trong sight cone nếu không bị tường che.
+- Bắt player ngay nếu player đi vào vòng đỏ quanh guard.
 - Đuổi theo khi phát hiện.
 - Mất dấu một khoảng thời gian sẽ quay lại tuần tra.
 

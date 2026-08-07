@@ -30,5 +30,10 @@ namespace LevelDesignStarterKit
             activated = true;
             LDGameSession.Instance.SetCheckpoint(transform);
         }
+
+        public void ResetCheckpoint()
+        {
+            activated = false;
+        }
     }
 }

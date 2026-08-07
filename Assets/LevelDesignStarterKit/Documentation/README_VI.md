@@ -1,6 +1,6 @@
 # LEVEL DESIGN STARTER KIT — HƯỚNG DẪN NHANH
 
-Starter Kit này dành cho bài tập graybox third-person trong Unity 2022.3.
+Starter Kit này dành cho bài tập graybox first-person trong Unity 2022.3.
 Toàn bộ hình ảnh dùng primitive có sẵn của Unity, không cần tải package hoặc asset ngoài.
 
 ## 1. Tạo toàn bộ Starter Kit
@@ -12,7 +12,7 @@ Sau khi Unity compile xong, chọn:
 Unity sẽ tạo:
 
 - `Generated/Materials`: quy ước màu cho graybox và gameplay marker.
-- `Generated/Prefabs/LD_Player`: player third-person.
+- `Generated/Prefabs/LD_Player`: player first-person.
 - `Generated/Prefabs/LD_Guard`: enemy tuần tra, phát hiện và đuổi.
 - `Generated/Prefabs/LD_Checkpoint`: checkpoint.
 - `Generated/Prefabs/LD_EnergyCore`: mục tiêu cần thu thập.
@@ -24,6 +24,8 @@ sẽ được cập nhật; script runtime và documentation không bị thay đ
 
 ## 2. Điều khiển
 
+- Khi scene bắt đầu, xem `CAMERA VIEWING` để quan sát cấu trúc level, sau đó click `Begin`.
+- Duplicate `LD_PreviewCamera_01` để thêm điểm nhìn; nút `Back`/`Next` sẽ duyệt theo `Order`.
 - `WASD` hoặc phím mũi tên: di chuyển.
 - Giữ `Shift`: chạy.
 - `Space`: nhảy.
@@ -64,7 +66,7 @@ chỉ hỗ trợ né các vật cản đơn giản; không nên bắt guard tự
 - `Detection Distance`: khoảng phát hiện tối đa.
 - `View Angle`: độ rộng sight cone.
 - `Lose Player After`: thời gian tìm kiếm sau khi mất dấu.
-- `Catch Distance`: khoảng cách bắt player.
+- `Catch Distance`: bán kính vòng đỏ quanh guard; player đi vào vòng này sẽ bị bắt.
 - `Obstacle Probe Distance`: khoảng dò vật cản đơn giản.
 
 Sight cone và patrol path hiển thị bằng Gizmos trong Scene View. Bật nút `Gizmos`

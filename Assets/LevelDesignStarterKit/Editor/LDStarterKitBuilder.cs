@@ -223,6 +223,13 @@ namespace LevelDesignStarterKit.Editor
             controller.stepOffset = 0.3f;
             controller.slopeLimit = 50f;
             root.AddComponent<LDEnemyGuard>();
+            LDGuardDetectionLight detectionLight = root.GetComponent<LDGuardDetectionLight>();
+            if (detectionLight == null)
+            {
+                detectionLight = root.AddComponent<LDGuardDetectionLight>();
+            }
+
+            ConfigureDetectionLight(detectionLight);
 
             CreatePrimitiveChild(
                 root.transform,
@@ -251,6 +258,19 @@ namespace LevelDesignStarterKit.Editor
             serializedGuard.ApplyModifiedPropertiesWithoutUndo();
 
             return SavePrefabAndDestroy(root, PrefabsFolder + "/LD_Guard.prefab");
+        }
+
+        private static void ConfigureDetectionLight(LDGuardDetectionLight detectionLight)
+        {
+            Color rangeColor = new Color(1f, 0f, 0f, 0.2f);
+            Color catchRingColor = new Color(1f, 0f, 0f, 0.6f);
+            SerializedObject serializedLight = new SerializedObject(detectionLight);
+            serializedLight.FindProperty("patrolColor").colorValue = rangeColor;
+            serializedLight.FindProperty("alertColor").colorValue = rangeColor;
+            serializedLight.FindProperty("showCatchRing").boolValue = true;
+            serializedLight.FindProperty("catchRingColor").colorValue = catchRingColor;
+            serializedLight.FindProperty("catchRingThickness").floatValue = 0.08f;
+            serializedLight.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static GameObject CreateCheckpointPrefab(Material material)

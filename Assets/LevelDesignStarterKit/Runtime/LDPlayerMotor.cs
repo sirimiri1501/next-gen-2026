@@ -39,7 +39,7 @@ namespace LevelDesignStarterKit
 
         private void Update()
         {
-            if (LDGameSession.Instance != null && LDGameSession.Instance.IsComplete)
+            if (LDGameSession.Instance != null && !LDGameSession.Instance.IsGameplayActive)
             {
                 return;
             }
@@ -59,7 +59,7 @@ namespace LevelDesignStarterKit
             input = Vector2.ClampMagnitude(input, 1f);
 
             Vector3 moveDirection = GetCameraRelativeDirection(input);
-            if (moveDirection.sqrMagnitude > 0.001f)
+            if (!CameraControlsRotation() && moveDirection.sqrMagnitude > 0.001f)
             {
                 float targetAngle = Mathf.Atan2(moveDirection.x, moveDirection.z) * Mathf.Rad2Deg;
                 float smoothedAngle = Mathf.SmoothDampAngle(
@@ -112,6 +112,11 @@ namespace LevelDesignStarterKit
             forward.Normalize();
             right.Normalize();
             return (forward * input.y + right * input.x).normalized;
+        }
+
+        private bool CameraControlsRotation()
+        {
+            return cameraTransform != null && cameraTransform.GetComponent<LDThirdPersonCamera>() != null;
         }
     }
 }

@@ -198,7 +198,7 @@ PrefabInstance:
       objectReference: {fileID: 420234372}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: viewAngle
-      value: 35.6
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: chaseSpeed
@@ -208,6 +208,10 @@ PrefabInstance:
       propertyPath: patrolPath
       value: 
       objectReference: {fileID: 1500457845}
+    - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
+      propertyPath: patrolSpeed
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: obstacleMask.m_Bits
       value: 51
@@ -502,7 +506,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1473599322966126197, guid: 2874c4770afb60d42bd6aba3d3e61b14, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.68105704
       objectReference: {fileID: 0}
     - target: {fileID: 1473599322966126197, guid: 2874c4770afb60d42bd6aba3d3e61b14, type: 3}
       propertyPath: m_LocalRotation.x
@@ -510,7 +514,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1473599322966126197, guid: 2874c4770afb60d42bd6aba3d3e61b14, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0.73223037
       objectReference: {fileID: 0}
     - target: {fileID: 1473599322966126197, guid: 2874c4770afb60d42bd6aba3d3e61b14, type: 3}
       propertyPath: m_LocalRotation.z
@@ -522,7 +526,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1473599322966126197, guid: 2874c4770afb60d42bd6aba3d3e61b14, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: 94.147
       objectReference: {fileID: 0}
     - target: {fileID: 1473599322966126197, guid: 2874c4770afb60d42bd6aba3d3e61b14, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -694,6 +698,8 @@ Transform:
   - {fileID: 940904569}
   - {fileID: 646422831}
   - {fileID: 598575657}
+  - {fileID: 1387147629}
+  - {fileID: 2103974279}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &554229277
@@ -849,6 +855,10 @@ MonoBehaviour:
   initialSpawnPoint: {fileID: 420234372}
   objectiveText: Find the Energy Core, then reach the Exit.
   showHud: 1
+  showStartPreview: 1
+  previewTitle: CAMERA VIEWING
+  previewText: Use Back and Next to inspect preview cameras inside the building,
+    then click Begin to start.
 --- !u!1 &646422830
 GameObject:
   m_ObjectHideFlags: 0
@@ -896,17 +906,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 420234372}
-  distance: 5.5
-  pivotHeight: 1.45
+  pivotHeight: 1.55
   mouseSensitivity: 3
-  minimumPitch: -20
-  maximumPitch: 65
-  positionSmoothTime: 0.05
-  collisionRadius: 0.2
-  collisionMask:
-    serializedVersion: 2
-    m_Bits: 4294967291
+  minimumPitch: -80
+  maximumPitch: 80
+  rotateTargetWithView: 1
+  hideTargetRenderers: 1
   lockCursorOnStart: 1
+  overviewOrbitSpeed: 8
+  overviewMinimumDistance: 18
+  overviewMinimumHeight: 18
 --- !u!81 &646422833
 AudioListener:
   m_ObjectHideFlags: 0
@@ -1047,7 +1056,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   player: {fileID: 0}
   eye: {fileID: 0}
-  spinSpeed: 90
+  detectionLight: {fileID: 0}
+  spinSpeed: 40.9
   clockwise: 1
   chaseSpeed: 6
   returnSpeed: 2.2
@@ -1055,7 +1065,7 @@ MonoBehaviour:
   returnTolerance: 0.25
   gravity: -25
   detectionDistance: 8
-  viewAngle: 75
+  viewAngle: 90
   losePlayerAfter: 2.5
   catchDistance: 1.1
   visionMask:
@@ -1079,7 +1089,7 @@ PrefabInstance:
       objectReference: {fileID: 420234372}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: viewAngle
-      value: 35.6
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: chaseSpeed
@@ -1089,6 +1099,10 @@ PrefabInstance:
       propertyPath: patrolPath
       value: 
       objectReference: {fileID: 889347075}
+    - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
+      propertyPath: patrolSpeed
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: obstacleMask.m_Bits
       value: 51
@@ -1177,7 +1191,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 0
+  useBezierMovement: 0
   gizmoColor: {r: 0.1, g: 0.9, b: 1, a: 1}
+  bezierPreviewStepsPerSegment: 16
 --- !u!4 &889347076
 Transform:
   m_ObjectHideFlags: 0
@@ -1209,7 +1225,7 @@ PrefabInstance:
       objectReference: {fileID: 420234372}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: viewAngle
-      value: 35.6
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: chaseSpeed
@@ -1219,6 +1235,10 @@ PrefabInstance:
       propertyPath: patrolPath
       value: 
       objectReference: {fileID: 1305177286}
+    - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
+      propertyPath: patrolSpeed
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: obstacleMask.m_Bits
       value: 51
@@ -1581,7 +1601,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 0
+  useBezierMovement: 0
   gizmoColor: {r: 0.1, g: 0.9, b: 1, a: 1}
+  bezierPreviewStepsPerSegment: 16
 --- !u!4 &1145830682
 Transform:
   m_ObjectHideFlags: 0
@@ -1775,7 +1797,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 0
+  useBezierMovement: 0
   gizmoColor: {r: 0.1, g: 0.9, b: 1, a: 1}
+  bezierPreviewStepsPerSegment: 16
 --- !u!4 &1305177287
 Transform:
   m_ObjectHideFlags: 0
@@ -1793,6 +1817,52 @@ Transform:
   - {fileID: 1626102388}
   m_Father: {fileID: 1098121680}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1387147628
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1387147629}
+  - component: {fileID: 1387147630}
+  m_Layer: 0
+  m_Name: LD_PreviewCamera_01 (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1387147629
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1387147628}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.4367313, y: -0.25730887, z: 0.08943555, w: -0.857356}
+  m_LocalPosition: {x: -14.18, y: 10.92, z: -16.96}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 515209325}
+  m_LocalEulerAnglesHint: {x: 52.645, y: -323.243, z: 6.757}
+--- !u!114 &1387147630
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1387147628}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89d68e56f2704d7ba1be7c97902d57bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  displayName: Entry Interior View
+  order: 0
 --- !u!1001 &1387277871
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1990,7 +2060,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loop: 0
+  useBezierMovement: 0
   gizmoColor: {r: 0.1, g: 0.9, b: 1, a: 1}
+  bezierPreviewStepsPerSegment: 16
 --- !u!4 &1500457846
 Transform:
   m_ObjectHideFlags: 0
@@ -2263,7 +2335,7 @@ PrefabInstance:
       objectReference: {fileID: 420234372}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: viewAngle
-      value: 35.6
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: chaseSpeed
@@ -2273,6 +2345,10 @@ PrefabInstance:
       propertyPath: patrolPath
       value: 
       objectReference: {fileID: 1145830681}
+    - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
+      propertyPath: patrolSpeed
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 791804121507983490, guid: 347811690359fa44fba7ad9e32f53cf4, type: 3}
       propertyPath: obstacleMask.m_Bits
       value: 51
@@ -2696,6 +2772,52 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2012543524}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &2103974278
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2103974279}
+  - component: {fileID: 2103974280}
+  m_Layer: 0
+  m_Name: LD_PreviewCamera_01 (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2103974279
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2103974278}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.62040246, y: -0, z: -0, w: 0.7842837}
+  m_LocalPosition: {x: 0, y: 22.6, z: -2.2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 515209325}
+  m_LocalEulerAnglesHint: {x: 76.691, y: 0, z: 0}
+--- !u!114 &2103974280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2103974278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89d68e56f2704d7ba1be7c97902d57bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  displayName: Entry Interior View
+  order: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
