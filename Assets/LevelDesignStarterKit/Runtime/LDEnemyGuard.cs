@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace LevelDesignStarterKit
 {
@@ -17,7 +18,9 @@ namespace LevelDesignStarterKit
         [SerializeField] private LDWaypointPath patrolPath;
         [SerializeField] private Transform eye;
 
-        [Header("Movement")]
+        [Header("Guard Movement Mode")]
+        [Tooltip("ON: the guard stands and scans until it sees the player once, then chases continuously until reset.")]
+        [SerializeField] private bool standStillUntilPlayerDetected;
         [SerializeField, Min(0.1f)] private float patrolSpeed = 2.2f;
         [SerializeField, Min(0.1f)] private float chaseSpeed = 4.2f;
         [SerializeField, Min(1f)] private float rotationSpeed = 360f;
@@ -25,12 +28,34 @@ namespace LevelDesignStarterKit
         [SerializeField, Min(0f)] private float waypointWaitTime = 0.4f;
         [SerializeField] private float gravity = -25f;
 
+        [Header("Stationary Scan (Stand Still Enabled)")]
+        [Tooltip("Total scan arc, centered on the guard's facing direction when stationary mode begins.")]
+        [SerializeField, Range(0f, 180f)] private float stationaryScanAngle = 90f;
+        [Tooltip("Rotation speed while scanning, in degrees per second.")]
+        [SerializeField, Min(1f)] private float stationaryScanSpeed = 55f;
+        [Tooltip("How long the guard waits at both ends of the scan arc.")]
+        [SerializeField, Min(0f)] private float stationaryEndpointWaitTime = 1f;
+
         [Header("Detection")]
         [SerializeField, Min(0.5f)] private float detectionDistance = 8f;
         [SerializeField, Range(1f, 179f)] private float viewAngle = 75f;
         [SerializeField, Min(0.1f)] private float losePlayerAfter = 2.5f;
         [SerializeField, Min(0.1f)] private float catchDistance = 1.1f;
         [SerializeField] private LayerMask visionMask = ~0;
+
+        [Header("Vision Cone Visual")]
+        [Tooltip("Show the filled vision cone in the Game view.")]
+        [SerializeField] private bool showVisionCone = true;
+        [Tooltip("More rays make obstacle edges smoother but cost more physics queries.")]
+        [SerializeField, Range(2, 100)] private int visionConeRayCount = 36;
+        [Tooltip("Vertical offset above the guard's floor level to avoid z-fighting.")]
+        [SerializeField, Min(0f)] private float visionConeHeight = 0.04f;
+        [Tooltip("Shorten the cone rays when they hit a collider in Vision Mask.")]
+        [SerializeField] private bool clipVisionConeToObstacles = true;
+        [SerializeField] private Color visionConeColor = new Color(1f, 0.78f, 0.48f, 0.28f);
+        [SerializeField] private Color alertVisionConeColor = new Color(1f, 0.16f, 0.08f, 0.4f);
+        [Tooltip("Optional transparent material. Leave empty to use the generated unlit material.")]
+        [SerializeField] private Material visionConeMaterial;
 
         [Header("Simple Obstacle Steering")]
         [SerializeField, Min(0f)] private float obstacleProbeDistance = 1.1f;
@@ -46,12 +71,29 @@ namespace LevelDesignStarterKit
         private Vector3 lastSeenPosition;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
+        private Quaternion stationaryCenterRotation;
+        private int stationaryScanDirection = 1;
+        private float stationaryEndpointWaitTimer;
+        private bool previousStandStillMode;
+        private bool hasTriggeredPersistentChase;
+
+        private readonly RaycastHit[] visionConeHits = new RaycastHit[32];
+        private GameObject visionConeObject;
+        private Mesh visionConeMesh;
+        private Material runtimeVisionConeMaterial;
+        private Vector3[] visionConeVertices;
+        private Vector3[] visionConeNormals;
+        private int[] visionConeTriangles;
+        private int builtVisionConeRayCount = -1;
 
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
             initialPosition = transform.position;
             initialRotation = transform.rotation;
+            stationaryCenterRotation = GetYawRotation(initialRotation);
+            previousStandStillMode = standStillUntilPlayerDetected;
+            EnsureVisionConeVisual();
         }
 
         private void Start()
@@ -61,6 +103,14 @@ namespace LevelDesignStarterKit
 
         private void Update()
         {
+            RefreshMovementMode();
+
+            if (LDGameSession.Instance != null && LDGameSession.Instance.IsCinematicPlaying)
+            {
+                ApplyGravityOnly();
+                return;
+            }
+
             if (LDGameSession.Instance != null && LDGameSession.Instance.IsComplete)
             {
                 ApplyGravityOnly();
@@ -70,19 +120,13 @@ namespace LevelDesignStarterKit
             ResolvePlayer();
             bool canSeePlayer = CanSeePlayer();
 
-            if (canSeePlayer)
+            if (standStillUntilPlayerDetected || hasTriggeredPersistentChase)
             {
-                state = GuardState.Chase;
-                lastSeenPosition = player.position;
-                timeWithoutSight = 0f;
+                UpdatePersistentChaseState(canSeePlayer);
             }
-            else if (state == GuardState.Chase || state == GuardState.Search)
+            else
             {
-                timeWithoutSight += Time.deltaTime;
-                if (state == GuardState.Chase)
-                {
-                    state = GuardState.Search;
-                }
+                UpdateStandardDetectionState(canSeePlayer);
             }
 
             if (player != null && state == GuardState.Chase)
@@ -94,6 +138,12 @@ namespace LevelDesignStarterKit
                     CatchPlayer();
                     return;
                 }
+            }
+
+            if (standStillUntilPlayerDetected && !hasTriggeredPersistentChase)
+            {
+                UpdateStationaryGuard();
+                return;
             }
 
             switch (state)
@@ -113,6 +163,46 @@ namespace LevelDesignStarterKit
                 default:
                     UpdatePatrol();
                     break;
+            }
+        }
+
+        private void LateUpdate()
+        {
+            UpdateVisionConeVisual();
+        }
+
+        private void OnEnable()
+        {
+            EnsureVisionConeVisual();
+            if (visionConeObject != null)
+            {
+                visionConeObject.SetActive(showVisionCone);
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (visionConeObject != null)
+            {
+                visionConeObject.SetActive(false);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (visionConeObject != null)
+            {
+                Destroy(visionConeObject);
+            }
+
+            if (visionConeMesh != null)
+            {
+                Destroy(visionConeMesh);
+            }
+
+            if (runtimeVisionConeMaterial != null)
+            {
+                Destroy(runtimeVisionConeMaterial);
             }
         }
 
@@ -139,6 +229,126 @@ namespace LevelDesignStarterKit
             waypointWaitTimer = 0f;
             timeWithoutSight = 0f;
             verticalVelocity = 0f;
+            stationaryCenterRotation = GetYawRotation(initialRotation);
+            stationaryScanDirection = 1;
+            stationaryEndpointWaitTimer = 0f;
+            previousStandStillMode = standStillUntilPlayerDetected;
+            hasTriggeredPersistentChase = false;
+        }
+
+        private void RefreshMovementMode()
+        {
+            if (standStillUntilPlayerDetected == previousStandStillMode)
+            {
+                return;
+            }
+
+            previousStandStillMode = standStillUntilPlayerDetected;
+            stationaryEndpointWaitTimer = 0f;
+
+            if (standStillUntilPlayerDetected)
+            {
+                stationaryCenterRotation = GetYawRotation(transform.rotation);
+                stationaryScanDirection = 1;
+
+                if (state == GuardState.Chase)
+                {
+                    hasTriggeredPersistentChase = true;
+                }
+                else if (!hasTriggeredPersistentChase)
+                {
+                    state = GuardState.Patrol;
+                    timeWithoutSight = 0f;
+                }
+            }
+        }
+
+        private void UpdatePersistentChaseState(bool canSeePlayer)
+        {
+            if (canSeePlayer)
+            {
+                hasTriggeredPersistentChase = true;
+            }
+
+            if (!hasTriggeredPersistentChase)
+            {
+                state = GuardState.Patrol;
+                timeWithoutSight = 0f;
+                return;
+            }
+
+            state = GuardState.Chase;
+            timeWithoutSight = 0f;
+            if (player != null)
+            {
+                lastSeenPosition = player.position;
+            }
+        }
+
+        private void UpdateStandardDetectionState(bool canSeePlayer)
+        {
+            if (canSeePlayer)
+            {
+                state = GuardState.Chase;
+                lastSeenPosition = player.position;
+                timeWithoutSight = 0f;
+                return;
+            }
+
+            if (state != GuardState.Chase && state != GuardState.Search)
+            {
+                return;
+            }
+
+            timeWithoutSight += Time.deltaTime;
+            if (state == GuardState.Chase)
+            {
+                state = GuardState.Search;
+            }
+        }
+
+        private void UpdateStationaryGuard()
+        {
+            UpdateStationaryScan();
+            ApplyGravityOnly();
+        }
+
+        private void UpdateStationaryScan()
+        {
+            float halfAngle = stationaryScanAngle * 0.5f;
+            if (halfAngle <= 0.01f)
+            {
+                transform.rotation = Quaternion.RotateTowards(
+                    transform.rotation,
+                    stationaryCenterRotation,
+                    stationaryScanSpeed * Time.deltaTime);
+                return;
+            }
+
+            if (stationaryEndpointWaitTimer > 0f)
+            {
+                stationaryEndpointWaitTimer -= Time.deltaTime;
+                return;
+            }
+
+            Quaternion targetRotation = stationaryCenterRotation
+                * Quaternion.Euler(0f, halfAngle * stationaryScanDirection, 0f);
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRotation,
+                stationaryScanSpeed * Time.deltaTime);
+
+            if (Quaternion.Angle(transform.rotation, targetRotation) <= 0.05f)
+            {
+                transform.rotation = targetRotation;
+                stationaryScanDirection *= -1;
+                stationaryEndpointWaitTimer = stationaryEndpointWaitTime;
+            }
+        }
+
+        private static Quaternion GetYawRotation(Quaternion rotation)
+        {
+            return Quaternion.Euler(0f, rotation.eulerAngles.y, 0f);
         }
 
         private void UpdatePatrol()
@@ -363,6 +573,221 @@ namespace LevelDesignStarterKit
             else
             {
                 verticalVelocity += gravity * Time.deltaTime;
+            }
+        }
+
+        private void EnsureVisionConeVisual()
+        {
+            if (!Application.isPlaying || visionConeObject != null)
+            {
+                return;
+            }
+
+            visionConeObject = new GameObject("VisionConeVisual");
+            visionConeObject.layer = gameObject.layer;
+            visionConeObject.transform.SetParent(transform, false);
+
+            MeshFilter meshFilter = visionConeObject.AddComponent<MeshFilter>();
+            MeshRenderer meshRenderer = visionConeObject.AddComponent<MeshRenderer>();
+
+            visionConeMesh = new Mesh { name = name + "_VisionConeMesh" };
+            visionConeMesh.MarkDynamic();
+            meshFilter.sharedMesh = visionConeMesh;
+
+            runtimeVisionConeMaterial = CreateVisionConeMaterial();
+            meshRenderer.sharedMaterial = runtimeVisionConeMaterial;
+            meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            meshRenderer.receiveShadows = false;
+            meshRenderer.lightProbeUsage = LightProbeUsage.Off;
+            meshRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            meshRenderer.enabled = runtimeVisionConeMaterial != null;
+
+            visionConeObject.SetActive(showVisionCone);
+        }
+
+        private Material CreateVisionConeMaterial()
+        {
+            if (visionConeMaterial != null)
+            {
+                Material materialCopy = new Material(visionConeMaterial)
+                {
+                    name = visionConeMaterial.name + " (Guard Runtime Copy)"
+                };
+                SetVisionConeMaterialColor(materialCopy, visionConeColor);
+                return materialCopy;
+            }
+
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader == null)
+            {
+                shader = Shader.Find("Unlit/Transparent");
+            }
+
+            if (shader == null)
+            {
+                shader = Shader.Find("Standard");
+            }
+
+            if (shader == null)
+            {
+                Debug.LogWarning("No transparent shader was found for the guard vision cone.", this);
+                return null;
+            }
+
+            Material material = new Material(shader)
+            {
+                name = name + "_VisionConeMaterial",
+                renderQueue = (int)RenderQueue.Transparent
+            };
+
+            if (shader.name == "Standard")
+            {
+                material.SetFloat("_Mode", 3f);
+                material.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+                material.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+                material.SetInt("_ZWrite", 0);
+                material.DisableKeyword("_ALPHATEST_ON");
+                material.EnableKeyword("_ALPHABLEND_ON");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            }
+
+            SetVisionConeMaterialColor(material, visionConeColor);
+            return material;
+        }
+
+        private void UpdateVisionConeVisual()
+        {
+            EnsureVisionConeVisual();
+            if (visionConeObject == null)
+            {
+                return;
+            }
+
+            if (!showVisionCone || runtimeVisionConeMaterial == null)
+            {
+                visionConeObject.SetActive(false);
+                return;
+            }
+
+            if (!visionConeObject.activeSelf)
+            {
+                visionConeObject.SetActive(true);
+            }
+
+            visionConeObject.transform.localPosition = new Vector3(0f, visionConeHeight, 0f);
+            visionConeObject.transform.localRotation = Quaternion.identity;
+            visionConeObject.transform.localScale = Vector3.one;
+
+            EnsureVisionConeMeshBuffers();
+
+            Vector3 eyePosition = eye != null ? eye.position : transform.position + Vector3.up * 1.55f;
+            Vector3 visualOriginWorld = new Vector3(eyePosition.x, transform.position.y, eyePosition.z);
+            Vector3 localOrigin = transform.InverseTransformPoint(visualOriginWorld);
+            localOrigin.y = 0f;
+            visionConeVertices[0] = localOrigin;
+
+            for (int i = 0; i <= builtVisionConeRayCount; i++)
+            {
+                float t = i / (float)builtVisionConeRayCount;
+                float angle = Mathf.Lerp(-viewAngle * 0.5f, viewAngle * 0.5f, t);
+                Vector3 worldDirection = Quaternion.Euler(0f, angle, 0f) * transform.forward;
+                worldDirection.y = 0f;
+                worldDirection.Normalize();
+
+                float rayDistance = GetVisionConeRayDistance(eyePosition, worldDirection);
+                Vector3 endpointWorld = visualOriginWorld + worldDirection * rayDistance;
+                Vector3 endpointLocal = transform.InverseTransformPoint(endpointWorld);
+                endpointLocal.y = 0f;
+                visionConeVertices[i + 1] = endpointLocal;
+            }
+
+            visionConeMesh.vertices = visionConeVertices;
+            visionConeMesh.RecalculateBounds();
+
+            Color currentColor = state == GuardState.Chase ? alertVisionConeColor : visionConeColor;
+            SetVisionConeMaterialColor(runtimeVisionConeMaterial, currentColor);
+        }
+
+        private void EnsureVisionConeMeshBuffers()
+        {
+            int rayCount = Mathf.Clamp(visionConeRayCount, 2, 100);
+            if (builtVisionConeRayCount == rayCount && visionConeVertices != null)
+            {
+                return;
+            }
+
+            builtVisionConeRayCount = rayCount;
+            visionConeVertices = new Vector3[rayCount + 2];
+            visionConeNormals = new Vector3[visionConeVertices.Length];
+            visionConeTriangles = new int[rayCount * 3];
+
+            for (int i = 0; i < visionConeNormals.Length; i++)
+            {
+                visionConeNormals[i] = Vector3.up;
+            }
+
+            for (int i = 0; i < rayCount; i++)
+            {
+                int triangleIndex = i * 3;
+                visionConeTriangles[triangleIndex] = 0;
+                visionConeTriangles[triangleIndex + 1] = i + 1;
+                visionConeTriangles[triangleIndex + 2] = i + 2;
+            }
+
+            visionConeMesh.Clear();
+            visionConeMesh.vertices = visionConeVertices;
+            visionConeMesh.normals = visionConeNormals;
+            visionConeMesh.triangles = visionConeTriangles;
+        }
+
+        private float GetVisionConeRayDistance(Vector3 origin, Vector3 direction)
+        {
+            if (!clipVisionConeToObstacles)
+            {
+                return detectionDistance;
+            }
+
+            int hitCount = Physics.RaycastNonAlloc(
+                origin,
+                direction,
+                visionConeHits,
+                detectionDistance,
+                visionMask,
+                QueryTriggerInteraction.Ignore);
+
+            float closestDistance = detectionDistance;
+            for (int i = 0; i < hitCount; i++)
+            {
+                Transform hitTransform = visionConeHits[i].transform;
+                if (hitTransform == null
+                    || hitTransform == transform
+                    || hitTransform.IsChildOf(transform)
+                    || (player != null && (hitTransform == player || hitTransform.IsChildOf(player))))
+                {
+                    continue;
+                }
+
+                closestDistance = Mathf.Min(closestDistance, visionConeHits[i].distance);
+            }
+
+            return closestDistance;
+        }
+
+        private static void SetVisionConeMaterialColor(Material material, Color color)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", color);
+            }
+
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
             }
         }
 

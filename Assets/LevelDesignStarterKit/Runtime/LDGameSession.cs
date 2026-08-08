@@ -26,6 +26,7 @@ namespace LevelDesignStarterKit
 
         public bool HasKey { get; private set; }
         public bool IsComplete { get; private set; }
+        public bool IsCinematicPlaying { get; private set; }
         public LDPlayerMotor Player => player;
 
         private void Awake()
@@ -174,6 +175,11 @@ namespace LevelDesignStarterKit
         {
             statusMessage = message;
             statusMessageUntil = Time.unscaledTime + Mathf.Max(0.1f, duration);
+        }
+
+        public void SetCinematicPlaying(bool isPlaying)
+        {
+            IsCinematicPlaying = isPlaying;
         }
 
         private void OnGUI()
