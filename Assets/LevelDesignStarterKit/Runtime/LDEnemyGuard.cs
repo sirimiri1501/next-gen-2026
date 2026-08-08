@@ -19,7 +19,8 @@ namespace LevelDesignStarterKit
         [SerializeField] private Transform eye;
 
         [Header("Guard Movement Mode")]
-        [Tooltip("ON: the guard stands and scans until it sees the player once, then chases continuously until reset.")]
+        [InspectorName("Stand Still While Idle")]
+        [Tooltip("ON: the guard stands and scans while idle. After losing the player, it searches normally and then resumes stationary scanning.")]
         [SerializeField] private bool standStillUntilPlayerDetected;
         [SerializeField, Min(0.1f)] private float patrolSpeed = 2.2f;
         [SerializeField, Min(0.1f)] private float chaseSpeed = 4.2f;
@@ -75,7 +76,6 @@ namespace LevelDesignStarterKit
         private int stationaryScanDirection = 1;
         private float stationaryEndpointWaitTimer;
         private bool previousStandStillMode;
-        private bool hasTriggeredPersistentChase;
 
         private readonly RaycastHit[] visionConeHits = new RaycastHit[32];
         private GameObject visionConeObject;
@@ -119,15 +119,7 @@ namespace LevelDesignStarterKit
 
             ResolvePlayer();
             bool canSeePlayer = CanSeePlayer();
-
-            if (standStillUntilPlayerDetected || hasTriggeredPersistentChase)
-            {
-                UpdatePersistentChaseState(canSeePlayer);
-            }
-            else
-            {
-                UpdateStandardDetectionState(canSeePlayer);
-            }
+            UpdateStandardDetectionState(canSeePlayer);
 
             if (player != null && state == GuardState.Chase)
             {
@@ -140,7 +132,7 @@ namespace LevelDesignStarterKit
                 }
             }
 
-            if (standStillUntilPlayerDetected && !hasTriggeredPersistentChase)
+            if (standStillUntilPlayerDetected && state == GuardState.Patrol)
             {
                 UpdateStationaryGuard();
                 return;
@@ -233,7 +225,6 @@ namespace LevelDesignStarterKit
             stationaryScanDirection = 1;
             stationaryEndpointWaitTimer = 0f;
             previousStandStillMode = standStillUntilPlayerDetected;
-            hasTriggeredPersistentChase = false;
         }
 
         private void RefreshMovementMode()
@@ -251,37 +242,11 @@ namespace LevelDesignStarterKit
                 stationaryCenterRotation = GetYawRotation(transform.rotation);
                 stationaryScanDirection = 1;
 
-                if (state == GuardState.Chase)
-                {
-                    hasTriggeredPersistentChase = true;
-                }
-                else if (!hasTriggeredPersistentChase)
+                if (state != GuardState.Chase && state != GuardState.Search)
                 {
                     state = GuardState.Patrol;
                     timeWithoutSight = 0f;
                 }
-            }
-        }
-
-        private void UpdatePersistentChaseState(bool canSeePlayer)
-        {
-            if (canSeePlayer)
-            {
-                hasTriggeredPersistentChase = true;
-            }
-
-            if (!hasTriggeredPersistentChase)
-            {
-                state = GuardState.Patrol;
-                timeWithoutSight = 0f;
-                return;
-            }
-
-            state = GuardState.Chase;
-            timeWithoutSight = 0f;
-            if (player != null)
-            {
-                lastSeenPosition = player.position;
             }
         }
 
@@ -419,6 +384,13 @@ namespace LevelDesignStarterKit
             state = GuardState.Patrol;
             timeWithoutSight = 0f;
             waypointWaitTimer = 0f;
+
+            if (standStillUntilPlayerDetected)
+            {
+                stationaryCenterRotation = GetYawRotation(transform.rotation);
+                stationaryScanDirection = 1;
+                stationaryEndpointWaitTimer = 0f;
+            }
 
             if (patrolPath != null && patrolPath.Count > 0)
             {
