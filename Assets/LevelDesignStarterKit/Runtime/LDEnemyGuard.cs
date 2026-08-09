@@ -324,6 +324,13 @@ namespace LevelDesignStarterKit
         {
             if (LDGameSession.Instance != null)
             {
+                LDPlayerMotor playerMotor = LDGameSession.Instance.Player;
+                if (playerMotor != null)
+                {
+                    playerMotor.OnCaughtByGuard();
+                    return;
+                }
+
                 LDGameSession.Instance.RespawnPlayer("Caught by a guard. Returned to checkpoint.");
             }
         }

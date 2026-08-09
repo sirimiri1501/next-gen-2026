@@ -242,7 +242,7 @@ MonoBehaviour:
   walkSpeed: 4
   runSpeed: 7
   rotationSmoothTime: 0.08
-  jumpHeight: 1.1
+  jumpHeight: 2.2
   gravity: -25
   respawnBelowY: -15
   cameraTransform: {fileID: 0}
