@@ -21,6 +21,9 @@ namespace LevelDesignStarterKit.Editor
         private const string PrefabsFolder = GeneratedFolder + "/Prefabs";
         private const string ScenesFolder = GeneratedFolder + "/Scenes";
         private const string DemoScenePath = ScenesFolder + "/LD_StarterKit_Demo.unity";
+        private const string CheckpointPrefabPath = PrefabsFolder + "/LD_Checkpoint.prefab";
+        private const string CheckpointEffectObjectName = "TeleportPerimeterWave";
+        private const string StaircasePrefabPath = PrefabsFolder + "/LD_staircase.prefab";
 
         private sealed class KitAssets
         {
@@ -37,6 +40,7 @@ namespace LevelDesignStarterKit.Editor
             public GameObject CheckpointPrefab;
             public GameObject KeyPrefab;
             public GameObject ExitPrefab;
+            public GameObject StaircasePrefab;
         }
 
         [InitializeOnLoadMethod]
@@ -56,6 +60,19 @@ namespace LevelDesignStarterKit.Editor
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(DemoScenePath) == null)
             {
                 BuildAll();
+                return;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(StaircasePrefabPath) == null)
+            {
+                BuildStaircasePrefab();
+            }
+
+            GameObject checkpointPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CheckpointPrefabPath);
+            if (checkpointPrefab == null
+                || checkpointPrefab.transform.Find(CheckpointEffectObjectName) == null)
+            {
+                BuildCheckpointPrefab();
             }
         }
 
@@ -73,6 +90,32 @@ namespace LevelDesignStarterKit.Editor
             SceneAsset demoScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(DemoScenePath);
             Selection.activeObject = demoScene;
             Debug.Log("Level Design Starter Kit created successfully. Demo scene: " + DemoScenePath);
+        }
+
+        [MenuItem("Tools/Level Design Starter Kit/Build or Rebuild Staircase Prefab", priority = 2)]
+        public static void BuildStaircasePrefab()
+        {
+            EnsureFolders();
+            Material gray = GetOrCreateMaterial("LD_Gray", new Color(0.48f, 0.52f, 0.56f));
+            GameObject staircase = CreateStaircasePrefab(gray);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = staircase;
+            Debug.Log("Prototype staircase prefab created successfully: " + StaircasePrefabPath);
+        }
+
+        [MenuItem("Tools/Level Design Starter Kit/Build or Rebuild Checkpoint Prefab", priority = 3)]
+        public static void BuildCheckpointPrefab()
+        {
+            EnsureFolders();
+            Material purple = GetOrCreateMaterial("LD_CheckpointPurple", new Color(0.58f, 0.22f, 0.90f));
+            GameObject checkpoint = CreateCheckpointPrefab(purple);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = checkpoint;
+            Debug.Log("Checkpoint prefab with teleport wave created successfully: " + CheckpointPrefabPath);
         }
 
         [MenuItem("GameObject/Level Design Starter Kit/Create Empty Patrol Path", false, 10)]
@@ -151,6 +194,7 @@ namespace LevelDesignStarterKit.Editor
             assets.CheckpointPrefab = CreateCheckpointPrefab(assets.Purple);
             assets.KeyPrefab = CreateKeyPrefab(assets.Yellow);
             assets.ExitPrefab = CreateExitPrefab(assets.Green);
+            assets.StaircasePrefab = CreateStaircasePrefab(assets.Gray);
             return assets;
         }
 
@@ -271,7 +315,105 @@ namespace LevelDesignStarterKit.Editor
                 material,
                 true);
 
-            return SavePrefabAndDestroy(root, PrefabsFolder + "/LD_Checkpoint.prefab");
+            CreateCheckpointTeleportWave(root.transform);
+
+            return SavePrefabAndDestroy(root, CheckpointPrefabPath);
+        }
+
+        private static void CreateCheckpointTeleportWave(Transform parent)
+        {
+            GameObject effectObject = new GameObject(CheckpointEffectObjectName);
+            effectObject.transform.SetParent(parent, false);
+            effectObject.transform.localPosition = new Vector3(0f, 0.18f, 0f);
+
+            ParticleSystem particleSystem = effectObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = particleSystem.main;
+            main.duration = 1.1f;
+            main.loop = true;
+            main.prewarm = true;
+            main.playOnAwake = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.68f, 0.82f);
+            main.startSpeed = 0f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.10f, 0.16f);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = Color.white;
+            main.gravityModifier = 0f;
+            main.maxParticles = 128;
+
+            ParticleSystem.EmissionModule emission = particleSystem.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[]
+            {
+                new ParticleSystem.Burst(0f, 48)
+            });
+
+            ParticleSystem.ShapeModule shape = particleSystem.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = 0.54f;
+            shape.radiusThickness = 0f;
+            shape.arc = 360f;
+            shape.arcMode = ParticleSystemShapeMultiModeValue.BurstSpread;
+            shape.rotation = new Vector3(90f, 0f, 0f);
+
+            ParticleSystem.VelocityOverLifetimeModule velocity = particleSystem.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.space = ParticleSystemSimulationSpace.Local;
+            velocity.y = new ParticleSystem.MinMaxCurve(0.14f);
+            velocity.radial = new ParticleSystem.MinMaxCurve(0.18f);
+            velocity.orbitalY = new ParticleSystem.MinMaxCurve(0.55f);
+
+            ParticleSystem.SizeOverLifetimeModule size = particleSystem.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(
+                1f,
+                new AnimationCurve(
+                    new Keyframe(0f, 0f),
+                    new Keyframe(0.12f, 1f),
+                    new Keyframe(0.68f, 0.78f),
+                    new Keyframe(1f, 0f)));
+
+            Gradient waveGradient = new Gradient();
+            waveGradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.60f, 0.18f, 1f), 0f),
+                    new GradientColorKey(new Color(0.10f, 0.86f, 1f), 0.52f),
+                    new GradientColorKey(new Color(0.72f, 0.24f, 1f), 1f)
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(0.95f, 0.12f),
+                    new GradientAlphaKey(0.55f, 0.72f),
+                    new GradientAlphaKey(0f, 1f)
+                });
+
+            ParticleSystem.ColorOverLifetimeModule color = particleSystem.colorOverLifetime;
+            color.enabled = true;
+            color.color = new ParticleSystem.MinMaxGradient(waveGradient);
+
+            ParticleSystem.NoiseModule noise = particleSystem.noise;
+            noise.enabled = true;
+            noise.quality = ParticleSystemNoiseQuality.Low;
+            noise.strength = new ParticleSystem.MinMaxCurve(0.03f);
+            noise.frequency = 0.7f;
+            noise.scrollSpeed = new ParticleSystem.MinMaxCurve(0.2f);
+            noise.damping = true;
+
+            ParticleSystemRenderer renderer = effectObject.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.alignment = ParticleSystemRenderSpace.View;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            renderer.sortingOrder = 10;
+            renderer.minParticleSize = 0.01f;
+            renderer.maxParticleSize = 0.3f;
+            renderer.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Particle.mat");
         }
 
         private static GameObject CreateKeyPrefab(Material material)
@@ -311,6 +453,39 @@ namespace LevelDesignStarterKit.Editor
             CreatePrimitiveChild(root.transform, "Top", PrimitiveType.Cube, new Vector3(0f, 3f, 0f), new Vector3(3.05f, 0.35f, 0.45f), material, true);
 
             return SavePrefabAndDestroy(root, PrefabsFolder + "/LD_Exit.prefab");
+        }
+
+        private static GameObject CreateStaircasePrefab(Material material)
+        {
+            const int stepCount = 8;
+            const float staircaseWidth = 3f;
+            const float stepHeight = 0.25f;
+            const float stepDepth = 0.5f;
+            const StaticEditorFlags staticFlags =
+                StaticEditorFlags.BatchingStatic |
+                StaticEditorFlags.OccluderStatic |
+                StaticEditorFlags.OccludeeStatic;
+
+            GameObject root = new GameObject("LD_staircase");
+            float staircaseDepth = stepCount * stepDepth;
+
+            for (int i = 0; i < stepCount; i++)
+            {
+                float height = (i + 1) * stepHeight;
+                float z = (-staircaseDepth * 0.5f) + ((i + 0.5f) * stepDepth);
+                GameObject step = CreatePrimitiveChild(
+                    root.transform,
+                    "Step_" + (i + 1).ToString("00"),
+                    PrimitiveType.Cube,
+                    new Vector3(0f, height * 0.5f, z),
+                    new Vector3(staircaseWidth, height, stepDepth),
+                    material,
+                    false);
+
+                GameObjectUtility.SetStaticEditorFlags(step, staticFlags);
+            }
+
+            return SavePrefabAndDestroy(root, StaircasePrefabPath);
         }
 
         private static GameObject SavePrefabAndDestroy(GameObject root, string path)

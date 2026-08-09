@@ -10,7 +10,8 @@ namespace LevelDesignStarterKit
         {
             Patrol,
             Chase,
-            Search
+            Search,
+            ReturnToPost
         }
 
         [Header("References")]
@@ -20,8 +21,9 @@ namespace LevelDesignStarterKit
 
         [Header("Guard Movement Mode")]
         [InspectorName("Stand Still While Idle")]
-        [Tooltip("ON: the guard stands and scans while idle. After losing the player, it searches normally and then resumes stationary scanning.")]
+        [Tooltip("ON: the guard stands and scans while idle. After losing the player, it pauses, returns to its initial post, and resumes scanning.")]
         [SerializeField] private bool standStillUntilPlayerDetected;
+        [Tooltip("Movement speed while patrolling or returning a stationary guard to its initial post.")]
         [SerializeField, Min(0.1f)] private float patrolSpeed = 2.2f;
         [SerializeField, Min(0.1f)] private float chaseSpeed = 4.2f;
         [SerializeField, Min(1f)] private float rotationSpeed = 360f;
@@ -40,6 +42,7 @@ namespace LevelDesignStarterKit
         [Header("Detection")]
         [SerializeField, Min(0.5f)] private float detectionDistance = 8f;
         [SerializeField, Range(1f, 179f)] private float viewAngle = 75f;
+        [Tooltip("How long a guard waits after losing sight. A stationary guard freezes for this duration before returning to its initial post.")]
         [SerializeField, Min(0.1f)] private float losePlayerAfter = 2.5f;
         [SerializeField, Min(0.1f)] private float catchDistance = 1.1f;
         [SerializeField] private LayerMask visionMask = ~0;
@@ -145,11 +148,23 @@ namespace LevelDesignStarterKit
                     break;
 
                 case GuardState.Search:
-                    MoveTowards(lastSeenPosition, chaseSpeed * 0.8f, 0.1f);
+                    if (standStillUntilPlayerDetected)
+                    {
+                        ApplyGravityOnly();
+                    }
+                    else
+                    {
+                        MoveTowards(lastSeenPosition, chaseSpeed * 0.8f, 0.1f);
+                    }
+
                     if (timeWithoutSight >= losePlayerAfter)
                     {
                         ReturnToPatrol();
                     }
+                    break;
+
+                case GuardState.ReturnToPost:
+                    UpdateReturnToPost();
                     break;
 
                 default:
@@ -236,6 +251,12 @@ namespace LevelDesignStarterKit
 
             previousStandStillMode = standStillUntilPlayerDetected;
             stationaryEndpointWaitTimer = 0f;
+
+            if (!standStillUntilPlayerDetected && state == GuardState.ReturnToPost)
+            {
+                ReturnToPatrol();
+                return;
+            }
 
             if (standStillUntilPlayerDetected)
             {
@@ -381,21 +402,59 @@ namespace LevelDesignStarterKit
 
         private void ReturnToPatrol()
         {
-            state = GuardState.Patrol;
             timeWithoutSight = 0f;
             waypointWaitTimer = 0f;
 
             if (standStillUntilPlayerDetected)
             {
-                stationaryCenterRotation = GetYawRotation(transform.rotation);
-                stationaryScanDirection = 1;
-                stationaryEndpointWaitTimer = 0f;
+                state = GuardState.ReturnToPost;
+                return;
             }
+
+            state = GuardState.Patrol;
 
             if (patrolPath != null && patrolPath.Count > 0)
             {
                 currentWaypointIndex = patrolPath.GetClosestPointIndex(transform.position);
             }
+        }
+
+        private void UpdateReturnToPost()
+        {
+            const float positionTolerance = 0.08f;
+            const float rotationTolerance = 0.5f;
+
+            Vector3 horizontalDelta = initialPosition - transform.position;
+            horizontalDelta.y = 0f;
+
+            if (horizontalDelta.magnitude > positionTolerance)
+            {
+                MoveTowards(initialPosition, patrolSpeed, positionTolerance);
+                return;
+            }
+
+            ApplyGravityOnly();
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                initialRotation,
+                rotationSpeed * Time.deltaTime);
+
+            if (Quaternion.Angle(transform.rotation, initialRotation) > rotationTolerance)
+            {
+                return;
+            }
+
+            controller.enabled = false;
+            transform.SetPositionAndRotation(initialPosition, initialRotation);
+            controller.enabled = true;
+
+            state = GuardState.Patrol;
+            timeWithoutSight = 0f;
+            waypointWaitTimer = 0f;
+            verticalVelocity = 0f;
+            stationaryCenterRotation = GetYawRotation(initialRotation);
+            stationaryScanDirection = 1;
+            stationaryEndpointWaitTimer = 0f;
         }
 
         private void MoveTowards(Vector3 targetPosition, float speed, float stoppingDistance)
