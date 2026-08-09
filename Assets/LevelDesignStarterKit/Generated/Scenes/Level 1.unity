@@ -1450,7 +1450,7 @@ MonoBehaviour:
   player: {fileID: 0}
   eye: {fileID: 0}
   detectionLight: {fileID: 0}
-  spinSpeed: 40.9
+  spinSpeed: 90
   clockwise: 1
   chaseSpeed: 6
   returnSpeed: 2.2
@@ -2025,8 +2025,8 @@ MonoBehaviour:
   player: {fileID: 0}
   eye: {fileID: 0}
   detectionLight: {fileID: 0}
-  spinSpeed: 40.9
-  clockwise: 1
+  spinSpeed: 90
+  clockwise: 0
   chaseSpeed: 6
   returnSpeed: 2.2
   rotationSpeed: 360
