@@ -88,7 +88,7 @@ namespace LevelDesignStarterKit
 
             if (transform.position.y < respawnBelowY && LDGameSession.Instance != null)
             {
-                LDGameSession.Instance.RespawnPlayer("You fell. Returned to checkpoint.");
+                LDGameSession.Instance.RespawnPlayerAfterDeath("You fell. Returned to checkpoint.");
             }
         }
 

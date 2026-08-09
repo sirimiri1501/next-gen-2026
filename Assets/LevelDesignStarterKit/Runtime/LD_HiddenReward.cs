@@ -32,6 +32,14 @@ namespace LevelDesignStarterKit
             SetColliderAsTrigger();
         }
 
+        private void OnEnable()
+        {
+            if (LDGameSession.Instance != null)
+            {
+                LDGameSession.Instance.RegisterHiddenReward(this);
+            }
+        }
+
         private void OnTriggerEnter(Collider other)
         {
             if (collected || other.GetComponentInParent<LDPlayerMotor>() == null)
@@ -56,6 +64,7 @@ namespace LevelDesignStarterKit
             }
 
             collected = true;
+            LDGameSession.Instance.NotifyHiddenRewardCollected(this);
 
             string message = string.IsNullOrWhiteSpace(rewardMessage)
                 ? DefaultRewardMessage
@@ -73,6 +82,11 @@ namespace LevelDesignStarterKit
         {
             collected = false;
             gameObject.SetActive(true);
+
+            if (LDGameSession.Instance != null)
+            {
+                LDGameSession.Instance.NotifyHiddenRewardReset(this);
+            }
         }
 
         private void SetColliderAsTrigger()

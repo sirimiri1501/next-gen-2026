@@ -565,7 +565,7 @@ namespace LevelDesignStarterKit
         {
             if (LDGameSession.Instance != null)
             {
-                LDGameSession.Instance.RespawnPlayer("Caught by a guard. Returned to checkpoint.");
+                LDGameSession.Instance.RespawnPlayerAfterDeath("Caught by a guard. Returned to checkpoint.");
             }
         }
 

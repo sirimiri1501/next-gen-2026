@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace LevelDesignStarterKit
@@ -23,11 +24,16 @@ namespace LevelDesignStarterKit
         private bool hasRespawnPoint;
         private string statusMessage = string.Empty;
         private float statusMessageUntil;
+        private readonly HashSet<LD_HiddenReward> hiddenRewards = new HashSet<LD_HiddenReward>();
+        private readonly HashSet<LD_HiddenReward> collectedHiddenRewards = new HashSet<LD_HiddenReward>();
+        private LDKeyCollectible collectedKey;
 
         public bool HasKey { get; private set; }
         public bool IsComplete { get; private set; }
         public bool IsCinematicPlaying { get; private set; }
         public LDPlayerMotor Player => player;
+        public int HiddenGemsCollected => collectedHiddenRewards.Count;
+        public int HiddenGemsTotal => hiddenRewards.Count;
 
         private void Awake()
         {
@@ -53,6 +59,7 @@ namespace LevelDesignStarterKit
                 RegisterPlayer(player);
             }
 
+            RefreshHiddenRewardRegistry();
             SetStatus("Observe the space, avoid the guards, and find the Energy Core.", 4f);
         }
 
@@ -98,15 +105,57 @@ namespace LevelDesignStarterKit
             SetStatus("Checkpoint activated", 2f);
         }
 
-        public void CollectKey()
+        public bool TryCollectKey(LDKeyCollectible key)
         {
-            if (HasKey)
+            if (HasKey || key == null || key.gameObject.scene != gameObject.scene)
+            {
+                return false;
+            }
+
+            HasKey = true;
+            collectedKey = key;
+            SetStatus("Energy Core collected. Reach the Exit!", 3f);
+            return true;
+        }
+
+        public void RegisterHiddenReward(LD_HiddenReward reward)
+        {
+            if (!BelongsToThisLevel(reward))
             {
                 return;
             }
 
-            HasKey = true;
-            SetStatus("Energy Core collected. Reach the Exit!", 3f);
+            hiddenRewards.Add(reward);
+            if (reward.IsCollected)
+            {
+                collectedHiddenRewards.Add(reward);
+            }
+            else
+            {
+                collectedHiddenRewards.Remove(reward);
+            }
+        }
+
+        public void NotifyHiddenRewardCollected(LD_HiddenReward reward)
+        {
+            if (!BelongsToThisLevel(reward))
+            {
+                return;
+            }
+
+            hiddenRewards.Add(reward);
+            collectedHiddenRewards.Add(reward);
+        }
+
+        public void NotifyHiddenRewardReset(LD_HiddenReward reward)
+        {
+            if (!BelongsToThisLevel(reward))
+            {
+                return;
+            }
+
+            hiddenRewards.Add(reward);
+            collectedHiddenRewards.Remove(reward);
         }
 
         public bool TryCompleteLevel()
@@ -137,6 +186,16 @@ namespace LevelDesignStarterKit
 
         public void RespawnPlayer(string reason)
         {
+            RespawnPlayer(reason, false);
+        }
+
+        public void RespawnPlayerAfterDeath(string reason)
+        {
+            RespawnPlayer(reason, true);
+        }
+
+        private void RespawnPlayer(string reason, bool resetCollectedKey)
+        {
             if (player == null || !hasRespawnPoint || IsComplete)
             {
                 return;
@@ -156,6 +215,11 @@ namespace LevelDesignStarterKit
                 controller.enabled = true;
             }
 
+            if (resetCollectedKey)
+            {
+                ResetCollectedKey();
+            }
+
             LDEnemyGuard[] guards = FindObjectsOfType<LDEnemyGuard>();
             foreach (LDEnemyGuard guard in guards)
             {
@@ -171,6 +235,18 @@ namespace LevelDesignStarterKit
             SetStatus(string.IsNullOrWhiteSpace(reason) ? "Returned to checkpoint" : reason, 2.5f);
         }
 
+        private void ResetCollectedKey()
+        {
+            HasKey = false;
+
+            LDKeyCollectible keyToReset = collectedKey;
+            collectedKey = null;
+            if (keyToReset != null)
+            {
+                keyToReset.ResetCollectible();
+            }
+        }
+
         public void SetStatus(string message, float duration)
         {
             statusMessage = message;
@@ -180,6 +256,23 @@ namespace LevelDesignStarterKit
         public void SetCinematicPlaying(bool isPlaying)
         {
             IsCinematicPlaying = isPlaying;
+        }
+
+        private void RefreshHiddenRewardRegistry()
+        {
+            hiddenRewards.Clear();
+            collectedHiddenRewards.Clear();
+
+            LD_HiddenReward[] rewards = FindObjectsOfType<LD_HiddenReward>(true);
+            foreach (LD_HiddenReward reward in rewards)
+            {
+                RegisterHiddenReward(reward);
+            }
+        }
+
+        private bool BelongsToThisLevel(LD_HiddenReward reward)
+        {
+            return reward != null && reward.gameObject.scene == gameObject.scene;
         }
 
         private void OnGUI()
@@ -194,6 +287,12 @@ namespace LevelDesignStarterKit
             GUI.Label(new Rect(30f, 50f, 390f, 24f), objectiveText);
             GUI.Label(new Rect(30f, 75f, 390f, 24f), HasKey ? "ENERGY CORE: FOUND" : "ENERGY CORE: NOT FOUND");
             GUI.Label(new Rect(30f, 96f, 390f, 20f), "WASD Move | Shift Run | Space Jump | Esc Cursor");
+
+            const float hiddenGemBoxWidth = 190f;
+            float hiddenGemBoxX = Mathf.Max(16f, Screen.width - hiddenGemBoxWidth - 16f);
+            GUI.Box(
+                new Rect(hiddenGemBoxX, 16f, hiddenGemBoxWidth, 44f),
+                $"HIDDEN GEMS: {HiddenGemsCollected}/{HiddenGemsTotal}");
 
             if (Time.unscaledTime < statusMessageUntil && !string.IsNullOrEmpty(statusMessage))
             {

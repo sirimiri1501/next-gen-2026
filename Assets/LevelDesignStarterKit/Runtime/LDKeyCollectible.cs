@@ -7,6 +7,8 @@ namespace LevelDesignStarterKit
     {
         private bool collected;
 
+        public bool IsCollected => collected;
+
         private void Reset()
         {
             Collider trigger = GetComponent<Collider>();
@@ -15,14 +17,30 @@ namespace LevelDesignStarterKit
 
         private void OnTriggerEnter(Collider other)
         {
-            if (collected || other.GetComponentInParent<LDPlayerMotor>() == null || LDGameSession.Instance == null)
+            if (collected || other.GetComponentInParent<LDPlayerMotor>() == null)
+            {
+                return;
+            }
+
+            LDGameSession session = LDGameSession.Instance;
+            if (session == null || !session.TryCollectKey(this))
             {
                 return;
             }
 
             collected = true;
-            LDGameSession.Instance.CollectKey();
             gameObject.SetActive(false);
+        }
+
+        public void ResetCollectible()
+        {
+            if (!collected)
+            {
+                return;
+            }
+
+            collected = false;
+            gameObject.SetActive(true);
         }
     }
 }

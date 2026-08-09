@@ -812,6 +812,53 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 51
   lockCursorOnStart: 1
+  playObjectiveTourOnStart: 1
+  energyCoreObjective: {fileID: 0}
+  exitObjective: {fileID: 0}
+  energyCoreCameraAnchor: {fileID: 0}
+  exitCameraAnchor: {fileID: 0}
+  playerToEnergyCoreWaypoints: []
+  energyCoreToExitWaypoints: []
+  automaticViewDistance: 4.5
+  automaticViewHeight: 6.5
+  automaticViewSideOffset: 0
+  energyCoreLookOffset: {x: 0, y: 0.8, z: 0}
+  exitLookOffset: {x: 0, y: 1.5, z: 0}
+  tourStartDelay: 0.35
+  playerToEnergyCoreTravelTime: 3
+  energyCoreToExitTravelTime: 2.5
+  returnTravelTime: 4
+  energyCoreHoldTime: 1.25
+  exitHoldTime: 1.75
+  tourMovementEase:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  pauseGuardsDuringTour: 1
+  freezePlayerDuringTour: 1
+  allowTourSkip: 1
+  tourSkipKey: 27
+  drawTourPathGizmos: 1
 --- !u!81 &674115409
 AudioListener:
   m_ObjectHideFlags: 0
@@ -2122,7 +2169,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1130596363}
   m_Layer: 0
-  m_Name: --- GAMEPLAY ---
+  m_Name: f
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

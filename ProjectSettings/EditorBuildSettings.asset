@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/LevelDesignStarterKit/Generated/Scenes/LD_StarterKit_Demo.unity
-    guid: c677d6311d2a15c4b8a94a7d96fa6b21
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/HuyNN8_Level1.unity
+    guid: 9ecc641ce59b99d4ab97386920d2bb03
+  - enabled: 1
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/HuyNN8_Level2.unity
+    guid: d94dd8ae3d18b6d43b65859fa8826ab8
+  - enabled: 1
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/HuyNN8_Level3.unity
+    guid: 76852a5b43097cc409b0688d82a7da5a
   m_configObjects: {}
