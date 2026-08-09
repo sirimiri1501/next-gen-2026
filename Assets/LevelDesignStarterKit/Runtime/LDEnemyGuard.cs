@@ -32,11 +32,14 @@ namespace LevelDesignStarterKit
         [SerializeField, Range(1f, 179f)] private float viewAngle = 75f;
         [SerializeField, Min(0.1f)] private float losePlayerAfter = 2.5f;
         [SerializeField, Min(0.1f)] private float catchDistance = 1.1f;
+        [Tooltip("Maximum vertical Y difference allowed for the guard to catch the player.")]
+        [SerializeField, Min(0f)] private float catchHeightTolerance = 0.5f;
         [SerializeField] private LayerMask visionMask = ~0;
 
         [Header("Simple Obstacle Steering")]
         [SerializeField, Min(0f)] private float obstacleProbeDistance = 1.1f;
         [SerializeField] private LayerMask obstacleMask = ~(1 << 2);
+
 
         private CharacterController controller;
         private GuardState state;
@@ -50,6 +53,7 @@ namespace LevelDesignStarterKit
         private Vector3 lastSeenPosition;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
+
 
         private void Awake()
         {
@@ -73,6 +77,8 @@ namespace LevelDesignStarterKit
             }
 
             ResolvePlayer();
+
+
             if (CanCatchNearbyPlayer())
             {
                 CatchPlayer();
@@ -329,6 +335,7 @@ namespace LevelDesignStarterKit
             }
         }
 
+
         private void MoveTowards(Vector3 targetPosition, float speed, float stoppingDistance)
         {
             Vector3 delta = targetPosition - transform.position;
@@ -477,9 +484,17 @@ namespace LevelDesignStarterKit
                 return false;
             }
 
-            Vector3 horizontalDelta = player.position - transform.position;
-            horizontalDelta.y = 0f;
-            return horizontalDelta.sqrMagnitude <= catchDistance * catchDistance;
+            Vector3 delta = player.position - transform.position;
+
+            // Player must be on roughly the same elevation as the guard.
+            if (Mathf.Abs(delta.y) > catchHeightTolerance)
+            {
+                return false;
+            }
+
+            // Catch range is measured horizontally.
+            delta.y = 0f;
+            return delta.sqrMagnitude <= catchDistance * catchDistance;
         }
 
         private void ResolvePlayer()
@@ -540,6 +555,10 @@ namespace LevelDesignStarterKit
 
             Gizmos.DrawLine(origin, origin + previous);
             Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.5f, catchDistance);
+
+            Gizmos.DrawWireCube(
+                transform.position,
+                new Vector3(catchDistance * 2f, catchHeightTolerance * 2f, catchDistance * 2f));
         }
     }
 }
