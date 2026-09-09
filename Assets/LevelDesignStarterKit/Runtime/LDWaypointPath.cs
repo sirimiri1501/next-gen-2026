@@ -10,6 +10,17 @@ namespace LevelDesignStarterKit
         public int Count => transform.childCount;
         public bool Loop => loop;
 
+        private void Awake()
+        {
+            // Editor-created paths live under their guard for a tidy hierarchy.
+            // Detach at runtime so the moving guard cannot drag its own patrol
+            // destinations through the world.
+            if (transform.parent != null && transform.parent.GetComponent<LDEnemyGuard>() != null)
+            {
+                transform.SetParent(transform.parent.parent, true);
+            }
+        }
+
         public Transform GetPoint(int index)
         {
             if (Count == 0)

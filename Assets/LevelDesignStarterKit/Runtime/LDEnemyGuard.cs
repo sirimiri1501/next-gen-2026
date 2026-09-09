@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace LevelDesignStarterKit
 {
@@ -32,6 +33,13 @@ namespace LevelDesignStarterKit
         [SerializeField, Min(0.1f)] private float catchDistance = 1.1f;
         [SerializeField] private LayerMask visionMask = ~0;
 
+        [Header("Sight Cone Visual")]
+        [SerializeField] private bool showSightCone = true;
+        [SerializeField, Range(6, 64)] private int sightConeSegments = 32;
+        [SerializeField, Min(0f)] private float sightConeGroundOffset = 0.04f;
+        [SerializeField] private Color patrolSightColor = new Color(1f, 0.35f, 0.05f, 0.22f);
+        [SerializeField] private Color chaseSightColor = new Color(1f, 0.05f, 0.02f, 0.32f);
+
         [Header("Simple Obstacle Steering")]
         [SerializeField, Min(0f)] private float obstacleProbeDistance = 1.1f;
         [SerializeField] private LayerMask obstacleMask = ~(1 << 2);
@@ -46,12 +54,18 @@ namespace LevelDesignStarterKit
         private Vector3 lastSeenPosition;
         private Vector3 initialPosition;
         private Quaternion initialRotation;
+        private GameObject sightConeObject;
+        private Mesh sightConeMesh;
+        private Material sightConeMaterial;
+        private Vector3[] sightConeVertices;
+        private readonly RaycastHit[] sightConeHits = new RaycastHit[16];
 
         private void Awake()
         {
             controller = GetComponent<CharacterController>();
             initialPosition = transform.position;
             initialRotation = transform.rotation;
+            CreateSightConeVisual();
         }
 
         private void Start()
@@ -84,6 +98,8 @@ namespace LevelDesignStarterKit
                     state = GuardState.Search;
                 }
             }
+
+            UpdateSightConeVisual();
 
             if (player != null && state == GuardState.Chase)
             {
@@ -363,6 +379,147 @@ namespace LevelDesignStarterKit
             else
             {
                 verticalVelocity += gravity * Time.deltaTime;
+            }
+        }
+
+        private void CreateSightConeVisual()
+        {
+            sightConeObject = new GameObject("Sight Cone Visual");
+            sightConeObject.transform.SetParent(transform, false);
+            sightConeObject.transform.localPosition = Vector3.up * sightConeGroundOffset;
+
+            MeshFilter meshFilter = sightConeObject.AddComponent<MeshFilter>();
+            MeshRenderer meshRenderer = sightConeObject.AddComponent<MeshRenderer>();
+            meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            meshRenderer.receiveShadows = false;
+            meshRenderer.sortingOrder = -10;
+
+            sightConeMesh = new Mesh { name = "Guard Sight Cone" };
+            sightConeMesh.MarkDynamic();
+            int segmentCount = Mathf.Max(6, sightConeSegments);
+            sightConeVertices = new Vector3[segmentCount + 2];
+            int[] triangles = new int[segmentCount * 3];
+
+            sightConeVertices[0] = Vector3.zero;
+            for (int i = 0; i <= segmentCount; i++)
+            {
+                float angle = Mathf.Lerp(-viewAngle * 0.5f, viewAngle * 0.5f, i / (float)segmentCount);
+                sightConeVertices[i + 1] =
+                    Quaternion.Euler(0f, angle, 0f) * Vector3.forward * detectionDistance;
+
+                if (i < segmentCount)
+                {
+                    int triangleIndex = i * 3;
+                    triangles[triangleIndex] = 0;
+                    triangles[triangleIndex + 1] = i + 1;
+                    triangles[triangleIndex + 2] = i + 2;
+                }
+            }
+
+            sightConeMesh.vertices = sightConeVertices;
+            sightConeMesh.triangles = triangles;
+            sightConeMesh.RecalculateBounds();
+            meshFilter.sharedMesh = sightConeMesh;
+
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader != null)
+            {
+                sightConeMaterial = new Material(shader)
+                {
+                    name = "Guard Sight Cone (Runtime)",
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                meshRenderer.sharedMaterial = sightConeMaterial;
+            }
+
+            UpdateSightConeVisual();
+        }
+
+        private void UpdateSightConeVisual()
+        {
+            if (sightConeObject == null)
+            {
+                return;
+            }
+
+            sightConeObject.SetActive(showSightCone);
+            sightConeObject.transform.localPosition = Vector3.up * sightConeGroundOffset;
+            if (!showSightCone)
+            {
+                return;
+            }
+
+            if (sightConeMaterial != null)
+            {
+                sightConeMaterial.color = state == GuardState.Chase ? chaseSightColor : patrolSightColor;
+            }
+
+            UpdateSightConeGeometry();
+        }
+
+        private void UpdateSightConeGeometry()
+        {
+            if (sightConeMesh == null || sightConeVertices == null)
+            {
+                return;
+            }
+
+            Vector3 rayOrigin = eye != null ? eye.position : transform.position + Vector3.up * 1.55f;
+            int segmentCount = sightConeVertices.Length - 2;
+
+            for (int i = 0; i <= segmentCount; i++)
+            {
+                float angle = Mathf.Lerp(-viewAngle * 0.5f, viewAngle * 0.5f, i / (float)segmentCount);
+                Vector3 localDirection = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Vector3 worldDirection = transform.TransformDirection(localDirection);
+                float visibleDistance = GetVisibleConeDistance(rayOrigin, worldDirection);
+                sightConeVertices[i + 1] = localDirection * visibleDistance;
+            }
+
+            sightConeMesh.vertices = sightConeVertices;
+            sightConeMesh.RecalculateBounds();
+        }
+
+        private float GetVisibleConeDistance(Vector3 origin, Vector3 direction)
+        {
+            int hitCount = Physics.RaycastNonAlloc(
+                origin,
+                direction,
+                sightConeHits,
+                detectionDistance,
+                visionMask,
+                QueryTriggerInteraction.Ignore);
+
+            float nearestDistance = detectionDistance;
+            for (int i = 0; i < hitCount; i++)
+            {
+                Transform hitTransform = sightConeHits[i].transform;
+                if (hitTransform == null || hitTransform == transform || hitTransform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                if (player != null && (hitTransform == player || hitTransform.IsChildOf(player)))
+                {
+                    continue;
+                }
+
+                nearestDistance = Mathf.Min(nearestDistance, sightConeHits[i].distance);
+            }
+
+            return nearestDistance;
+        }
+
+        private void OnDestroy()
+        {
+            if (sightConeMesh != null)
+            {
+                Destroy(sightConeMesh);
+            }
+
+            if (sightConeMaterial != null)
+            {
+                Destroy(sightConeMaterial);
             }
         }
 

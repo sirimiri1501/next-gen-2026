@@ -110,13 +110,18 @@ namespace LevelDesignStarterKit
                 return new Vector3(input.x, 0f, input.y).normalized;
             }
 
-            Vector3 forward = cameraTransform.forward;
-            Vector3 right = cameraTransform.right;
-            forward.y = 0f;
-            right.y = 0f;
-            forward.Normalize();
-            right.Normalize();
-            return (forward * input.y + right * input.x).normalized;
+            // Use only the camera's yaw so looking up or down never changes the
+            // player's speed or pushes movement into the ground. W/S follows the
+            // view direction, while A/D remains perpendicular to that view.
+            Vector3 viewForward = Vector3.ProjectOnPlane(cameraTransform.forward, Vector3.up);
+            if (viewForward.sqrMagnitude < 0.001f)
+            {
+                viewForward = Vector3.ProjectOnPlane(cameraTransform.up, Vector3.up);
+            }
+
+            viewForward.Normalize();
+            Vector3 viewRight = Vector3.Cross(Vector3.up, viewForward);
+            return (viewForward * input.y + viewRight * input.x).normalized;
         }
     }
 }

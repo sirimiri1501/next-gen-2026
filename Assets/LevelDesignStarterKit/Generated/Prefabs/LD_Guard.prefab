@@ -192,22 +192,27 @@ MonoBehaviour:
   patrolPath: {fileID: 0}
   eye: {fileID: 6935529246387644244}
   patrolSpeed: 2.2
-  chaseSpeed: 4.2
+  chaseSpeed: 6.09
   rotationSpeed: 360
   waypointTolerance: 0.25
   waypointWaitTime: 0.4
   gravity: -25
-  detectionDistance: 8
-  viewAngle: 75
+  detectionDistance: 13
+  viewAngle: 72
   losePlayerAfter: 2.5
   catchDistance: 1.1
   visionMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  showSightCone: 1
+  sightConeSegments: 32
+  sightConeGroundOffset: 0.04
+  patrolSightColor: {r: 1, g: 0.35, b: 0.05, a: 0.22}
+  chaseSightColor: {r: 1, g: 0.05, b: 0.02, a: 0.32}
   obstacleProbeDistance: 1.1
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
 --- !u!1 &4983368384536359680
 GameObject:
   m_ObjectHideFlags: 0
