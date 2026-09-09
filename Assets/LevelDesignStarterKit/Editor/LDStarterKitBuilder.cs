@@ -21,6 +21,7 @@ namespace LevelDesignStarterKit.Editor
         private const string PrefabsFolder = GeneratedFolder + "/Prefabs";
         private const string ScenesFolder = GeneratedFolder + "/Scenes";
         private const string DemoScenePath = ScenesFolder + "/LD_StarterKit_Demo.unity";
+        private const string VisionConeRequestFileName = "InstallGuardVisionCone.request";
 
         private sealed class KitAssets
         {
@@ -43,6 +44,31 @@ namespace LevelDesignStarterKit.Editor
         private static void ScheduleFirstBuild()
         {
             EditorApplication.delayCall += TryBuildMissingGeneratedAssets;
+            EditorApplication.delayCall += TryInstallRequestedGuardVisionCone;
+        }
+
+        private static void TryInstallRequestedGuardVisionCone()
+        {
+            if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                EditorApplication.delayCall += TryInstallRequestedGuardVisionCone;
+                return;
+            }
+
+            string requestPath = Path.Combine(Directory.GetCurrentDirectory(), "Temp", VisionConeRequestFileName);
+            if (!File.Exists(requestPath))
+            {
+                return;
+            }
+
+            try
+            {
+                InstallGuardVisionConeOnPrefab();
+            }
+            finally
+            {
+                File.Delete(requestPath);
+            }
         }
 
         private static void TryBuildMissingGeneratedAssets()
@@ -73,6 +99,33 @@ namespace LevelDesignStarterKit.Editor
             SceneAsset demoScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(DemoScenePath);
             Selection.activeObject = demoScene;
             Debug.Log("Level Design Starter Kit created successfully. Demo scene: " + DemoScenePath);
+        }
+
+        [MenuItem("Tools/Level Design Starter Kit/Install Red View Cone On Guard Prefab", priority = 2)]
+        public static void InstallGuardVisionConeOnPrefab()
+        {
+            string prefabPath = PrefabsFolder + "/LD_Guard.prefab";
+            GameObject prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+
+            try
+            {
+                if (prefabRoot.GetComponent<LDEnemyGuard>() == null)
+                {
+                    throw new System.InvalidOperationException("LD_Guard prefab is missing LDEnemyGuard.");
+                }
+
+                if (prefabRoot.GetComponent<LDGuardVisionCone>() == null)
+                {
+                    prefabRoot.AddComponent<LDGuardVisionCone>();
+                    PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
+                }
+
+                Debug.Log("RED VIEW CONE INSTALLED ON SHARED GUARD PREFAB — " + prefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
         }
 
         [MenuItem("GameObject/Level Design Starter Kit/Create Empty Patrol Path", false, 10)]
@@ -223,6 +276,7 @@ namespace LevelDesignStarterKit.Editor
             controller.stepOffset = 0.3f;
             controller.slopeLimit = 50f;
             root.AddComponent<LDEnemyGuard>();
+            root.AddComponent<LDGuardVisionCone>();
 
             CreatePrimitiveChild(
                 root.transform,

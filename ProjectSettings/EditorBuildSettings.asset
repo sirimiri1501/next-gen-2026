@@ -6,6 +6,15 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/Level 1 Tutorial.unity
+    guid: 4d795292fd59c7941bc7d02e0a7db0dd
+  - enabled: 1
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/Level 2.unity
+    guid: a1943879f4f721f4caf2d3c881076e61
+  - enabled: 1
+    path: Assets/LevelDesignStarterKit/Generated/Scenes/Level 3.unity
+    guid: 100ba40ac3fe440408232bcc120a549c
+  - enabled: 1
     path: Assets/LevelDesignStarterKit/Generated/Scenes/LD_StarterKit_Demo.unity
     guid: c677d6311d2a15c4b8a94a7d96fa6b21
   m_configObjects: {}

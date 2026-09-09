@@ -43,6 +43,11 @@ namespace LevelDesignStarterKit
         private float waypointWaitTimer;
         private float timeWithoutSight;
         private float verticalVelocity;
+
+        public float DetectionDistance => detectionDistance;
+        public float ViewAngle => viewAngle;
+        public LayerMask VisionMask => visionMask;
+        public Vector3 VisionOrigin => eye != null ? eye.position : transform.position + Vector3.up * 1.55f;
         private Vector3 lastSeenPosition;
         private Vector3 initialPosition;
         private Quaternion initialRotation;

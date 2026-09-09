@@ -125,6 +125,7 @@ GameObject:
   - component: {fileID: 4351881564967476639}
   - component: {fileID: 2865442628599261078}
   - component: {fileID: 791804121507983490}
+  - component: {fileID: 1610460963442799718}
   m_Layer: 0
   m_Name: LD_Guard
   m_TagString: Untagged
@@ -207,7 +208,23 @@ MonoBehaviour:
   obstacleProbeDistance: 1.1
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
+--- !u!114 &1610460963442799718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3697040906303330991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dacd551e2889ad549ab87a304afd2ebf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  segmentCount: 28
+  fillAlpha: 0.2
+  outlineWidth: 0.055
+  groundOffset: 0.06
 --- !u!1 &4983368384536359680
 GameObject:
   m_ObjectHideFlags: 0
