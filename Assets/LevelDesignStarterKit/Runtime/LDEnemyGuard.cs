@@ -385,7 +385,6 @@ namespace LevelDesignStarterKit
             }
 
             Gizmos.DrawLine(origin, origin + previous);
-            Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.5f, catchDistance);
         }
     }
 }

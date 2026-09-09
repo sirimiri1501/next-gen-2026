@@ -207,7 +207,7 @@ MonoBehaviour:
   obstacleProbeDistance: 1.1
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967291
+    m_Bits: 51
 --- !u!1 &4983368384536359680
 GameObject:
   m_ObjectHideFlags: 0
